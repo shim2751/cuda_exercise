@@ -1,4 +1,3 @@
-#include <cmath>
 #include <cuda_runtime.h>
 #include "vec_add.h"
 
@@ -21,7 +20,7 @@ void vec_add(float* A, float* B, float* C, int n){
     cudaMemcpy(A_d, A, size, cudaMemcpyHostToDevice);
     cudaMemcpy(B_d, B, size, cudaMemcpyHostToDevice);
     
-    vecAddKernel<<<(n/256)+1, 256>>>(A_d, B_d, C_d, n);
+    vecAddKernel<<<ceil(n/256.0), 256>>>(A_d, B_d, C_d, n);
 
     cudaMemcpy(C, C_d, size, cudaMemcpyDeviceToHost);
 
