@@ -13,7 +13,7 @@ void imageBlurKernel(unsigned char* Pin, unsigned char* Pout, int width, int hei
             for(int j=-r; j<r+1; j++){
                 int curCol = col + i;
                 int curRow = row + j;
-                if(0 < curCol && curCol < width && 0 < curRow && curRow < height){
+                if(0 <= curCol && curCol < width && 0 <= curRow && curRow < height){
                     pixelVal += Pin[(width * curRow + curCol) * CHANNEL + ch];
                     pixelNum++;
                 }
