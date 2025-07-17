@@ -1,6 +1,7 @@
 #include <cuda_runtime.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "color_to_grayscale.h"  // Added missing include
 
 int main() {
     int width = 4, height = 4;
@@ -16,7 +17,7 @@ int main() {
     unsigned char grayImage[16];
     
     // GPU로 변환
-    colorToGrayscale(colorImage, grayImage, width, height);
+    color_to_grayscale(colorImage, grayImage, width, height);
     
     // 결과 출력
     printf("원본 RGB 이미지:\n");
