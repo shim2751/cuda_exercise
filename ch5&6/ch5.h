@@ -6,5 +6,6 @@
 
 void matrix_mul_ch3(float* A, float* B, float* C, int width);
 void matrix_mul_ch5(float* A, float* B, float* C, int width);
+void matrix_mul_ch6(float* A, float* B, float* C, int width);
 
 #endif
