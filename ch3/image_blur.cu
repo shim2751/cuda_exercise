@@ -9,19 +9,20 @@ void imageBlurKernel(unsigned char* Pin, unsigned char* Pout, int width, int hei
     if(col < width && row < height){
         int pixelVal = 0; 
         int pixelNum = 0;
-        for(int i=-r; i<r; i++){
-            for(int j=-r; j<r; j++){
-                int curCol = col + j;
-                int curRow = row + i;
-                if(0 < curCol && curCol < width && 0 < curRow && curRow << height){
-                    pixelVal += Pin[(width * curCol + curRow) * CHANNEL + ch];
+        for(int i=-r; i<r+1; i++){
+            for(int j=-r; j<r+1; j++){
+                int curCol = col + i;
+                int curRow = row + j;
+                if(0 < curCol && curCol < width && 0 < curRow && curRow < height){
+                    pixelVal += Pin[(width * curRow + curCol) * CHANNEL + ch];
                     pixelNum++;
                 }
             }
         }
+        Pout[(width*row+col)*CHANNEL + ch] = pixelVal/pixelNum;
     }
+    
 }
-
 
 void image_blur(unsigned char* Pin, unsigned char* Pout, int width, int height, int radius){
     unsigned char* Pin_d, *Pout_d;

@@ -1,9 +1,9 @@
 NVCC = nvcc
-TARGET = bin/color_to_grayscale
+TARGET = bin/ch3
 
-$(TARGET): color_to_grayscale.cu main.cpp
+$(TARGET): color_to_grayscale.cu image_blur.cu main.cpp
 	mkdir -p bin
-	$(NVCC) -O3 -arch=sm_75 color_to_grayscale.cu main.cpp -o $(TARGET)
+	$(NVCC) -O3 -arch=sm_75 color_to_grayscale.cu image_blur.cu main.cpp -o $(TARGET)
 
 clean:
 	rm -f $(TARGET)

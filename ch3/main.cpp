@@ -1,25 +1,92 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "ch3.h"  // Added missing include
+#include <stdbool.h>
+#include "ch3.h"
 
 int main() {
     int width = 4, height = 4;
     
-    // 간단한 4x4 RGB 이미지 (빨강, 초록, 파랑, 흰색)
+    // Simple 4x4 RGB image (red, green, blue, white)
     unsigned char colorImage[48] = {
-        255,0,0,  0,255,0,  0,0,255,  255,255,255,  // 첫 번째 행
-        255,0,0,  0,255,0,  0,0,255,  255,255,255,  // 두 번째 행  
-        255,0,0,  0,255,0,  0,0,255,  255,255,255,  // 세 번째 행
-        255,0,0,  0,255,0,  0,0,255,  255,255,255   // 네 번째 행
+        255,0,0,  0,255,0,  0,0,255,  255,255,255,  // first row
+        255,0,0,  0,255,0,  0,0,255,  255,255,255,  // second row  
+        255,0,0,  0,255,0,  0,0,255,  255,255,255,  // third row
+        255,0,0,  0,255,0,  0,0,255,  255,255,255   // fourth row
     };
     
     unsigned char grayImage[16];
+    unsigned char blurredImage[48];
     
-    // GPU로 변환
+    // GPU grayscale conversion
     color_to_grayscale(colorImage, grayImage, width, height);
     
-    // 결과 출력
-    printf("원본 RGB 이미지:\n");
+    // GPU image blur
+    int radius = 1;
+    image_blur(colorImage, blurredImage, width, height, radius);
+    
+    // Grayscale result verification
+    printf("=== Grayscale Result Verification ===\n");
+    unsigned char expectedGray[16];
+    for(int i = 0; i < height; i++) {
+        for(int j = 0; j < width; j++) {
+            int idx = (i * width + j) * 3;
+            unsigned char r = colorImage[idx];
+            unsigned char g = colorImage[idx+1];
+            unsigned char b = colorImage[idx+2];
+            expectedGray[i * width + j] = (unsigned char)(0.21f*r + 0.71f*g + 0.07f*b);
+        }
+    }
+    
+    bool grayCorrect = true;
+    for(int i = 0; i < 16; i++) {
+        if(grayImage[i] != expectedGray[i]) {
+            grayCorrect = false;
+            break;
+        }
+    }
+    printf("Grayscale result: %s\n", grayCorrect ? "Correct" : "Error");
+    
+    // Blur result verification
+    printf("\n=== Blur Result Verification ===\n");
+    unsigned char expectedBlur[48];
+    
+    // CPU blur implementation for verification
+    for(int row = 0; row < height; row++) {
+        for(int col = 0; col < width; col++) {
+            for(int ch = 0; ch < 3; ch++) {
+                int pixelVal = 0;
+                int pixelNum = 0;
+                
+                // Apply blur with radius 1
+                for(int i = -radius; i < radius+1; i++) {
+                    for(int j = -radius; j < radius+1; j++) {
+                        int curRow = row + i;
+                        int curCol = col + j;
+                        
+                        if(curRow >= 0 && curRow < height && curCol >= 0 && curCol < width) {
+                            pixelVal += colorImage[(curRow * width + curCol) * 3 + ch];
+                            pixelNum++;
+                        }
+                    }
+                }
+                
+                expectedBlur[(row * width + col) * 3 + ch] = pixelVal / pixelNum;
+            }
+        }
+    }
+    
+    // Check if blur results match
+    bool blurCorrect = true;
+    for(int i = 0; i < 48; i++) {
+        if(blurredImage[i] != expectedBlur[i]) {
+            blurCorrect = false;
+            break;
+        }
+    }
+    printf("Blur result: %s\n", blurCorrect ? "Correct" : "Error");
+    
+    // Results output
+    printf("\nOriginal RGB image:\n");
     for(int i = 0; i < height; i++) {
         for(int j = 0; j < width; j++) {
             int idx = (i * width + j) * 3;
@@ -28,14 +95,25 @@ int main() {
         printf("\n");
     }
     
-    printf("\n그레이스케일 결과:\n");
+    printf("\nGrayscale result (GPU vs CPU):\n");
     for(int i = 0; i < height; i++) {
         for(int j = 0; j < width; j++) {
             int idx = i * width + j;
-            printf("%3d ", grayImage[idx]);
+            printf("%3d/%3d ", grayImage[idx], expectedGray[idx]);
         }
         printf("\n");
     }
     
+    printf("\nr=%d Blur result (GPU vs CPU):\n", radius);
+    for(int i = 0; i < height; i++) {
+        for(int j = 0; j < width; j++) {
+            int idx = (i * width + j) * 3;
+            printf("(%3d,%3d,%3d)/(%3d,%3d,%3d) ", 
+                   blurredImage[idx], blurredImage[idx+1], blurredImage[idx+2],
+                   expectedBlur[idx], expectedBlur[idx+1], expectedBlur[idx+2]);
+        }
+        printf("\n");
+    }
+
     return 0;
 }
