@@ -24,7 +24,7 @@ void initialize_matrix(float* matrix, int size) {
 }
 
 int main() {
-    int width = 512;
+    int width = 544;
     int size = width * width;
     
     float* A = new float[size];

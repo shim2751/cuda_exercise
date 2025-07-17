@@ -52,9 +52,15 @@ void matrixMulKernel_ch5(float* M, float* N, float* P, int width){
     
     float Pvalue = 0;
 
-    for (int ph=0; ph<width/TILE_WIDTH; ph++){
-        Mds[ty][tx] = M[row * width + ph * TILE_WIDTH + tx];    // M[row][ph*TILE_WIDTH+tx]
-        Nds[ty][tx] = N[(ph * TILE_WIDTH + ty) * width + col];  // N[ph*TILE_WIDTH+ty][col]
+    for (int ph=0; ph<ceil(width/(float)TILE_WIDTH); ph++){
+        if (row < width && (ph * TILE_WIDTH + tx) < width)
+            Mds[ty][tx] = M[row * width + ph * TILE_WIDTH + tx];    // M[row][ph*TILE_WIDTH+tx]
+        else
+            Mds[ty][tx] = 0.0f;
+        if (col < width && (ph*TILE_WIDTH+ty) < width)
+            Nds[ty][tx] = N[(ph * TILE_WIDTH + ty) * width + col];  // N[ph*TILE_WIDTH+ty][col]
+        else
+            Nds[ty][tx] = 0.0f;
         __syncthreads();
 
         for (int k = 0; k < TILE_WIDTH; ++k) {
@@ -62,7 +68,10 @@ void matrixMulKernel_ch5(float* M, float* N, float* P, int width){
         }
         __syncthreads();
     }
-    P[row*width + col] = Pvalue;
+    // threads that are outside the boundary also participate in shared memory loading => Cannot wrap the first for loop
+    // Also __syncthreads() cause problem if wrap the first for loop
+    if(col < width && row < width)
+        P[row*width + col] = Pvalue;
 }
 
 void matrix_mul_ch5(float* M, float* N, float* P, int width){
