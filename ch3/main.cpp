@@ -88,6 +88,36 @@ int main() {
     }
     printf("Blur result: %s\n", blurCorrect ? "Correct" : "Error");
     
+    // Results output for image processing
+    printf("\nOriginal RGB image:\n");
+    for(int i = 0; i < height; i++) {
+        for(int j = 0; j < width; j++) {
+            int idx = (i * width + j) * 3;
+            printf("(%3d,%3d,%3d) ", colorImage[idx], colorImage[idx+1], colorImage[idx+2]);
+        }
+        printf("\n");
+    }
+    
+    printf("\nGrayscale result (GPU vs CPU):\n");
+    for(int i = 0; i < height; i++) {
+        for(int j = 0; j < width; j++) {
+            int idx = i * width + j;
+            printf("%3d/%3d ", grayImage[idx], expectedGray[idx]);
+        }
+        printf("\n");
+    }
+    
+    printf("\nr=%d Blur result (GPU vs CPU):\n", radius);
+    for(int i = 0; i < height; i++) {
+        for(int j = 0; j < width; j++) {
+            int idx = (i * width + j) * 3;
+            printf("(%3d,%3d,%3d)/(%3d,%3d,%3d) ", 
+                   blurredImage[idx], blurredImage[idx+1], blurredImage[idx+2],
+                   expectedBlur[idx], expectedBlur[idx+1], expectedBlur[idx+2]);
+        }
+        printf("\n");
+    }
+
     // Matrix multiplication verification
     printf("\n=== Matrix Multiplication Verification ===\n");
     
@@ -164,36 +194,5 @@ int main() {
         }
         printf("\n");
     }
-    
-    // Results output for image processing
-    printf("\nOriginal RGB image:\n");
-    for(int i = 0; i < height; i++) {
-        for(int j = 0; j < width; j++) {
-            int idx = (i * width + j) * 3;
-            printf("(%3d,%3d,%3d) ", colorImage[idx], colorImage[idx+1], colorImage[idx+2]);
-        }
-        printf("\n");
-    }
-    
-    printf("\nGrayscale result (GPU vs CPU):\n");
-    for(int i = 0; i < height; i++) {
-        for(int j = 0; j < width; j++) {
-            int idx = i * width + j;
-            printf("%3d/%3d ", grayImage[idx], expectedGray[idx]);
-        }
-        printf("\n");
-    }
-    
-    printf("\nr=%d Blur result (GPU vs CPU):\n", radius);
-    for(int i = 0; i < height; i++) {
-        for(int j = 0; j < width; j++) {
-            int idx = (i * width + j) * 3;
-            printf("(%3d,%3d,%3d)/(%3d,%3d,%3d) ", 
-                   blurredImage[idx], blurredImage[idx+1], blurredImage[idx+2],
-                   expectedBlur[idx], expectedBlur[idx+1], expectedBlur[idx+2]);
-        }
-        printf("\n");
-    }
-
     return 0;
 }
