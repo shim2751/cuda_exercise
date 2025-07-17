@@ -17,11 +17,11 @@ void vec_add(float* A, float* B, float* C, int n){
     cudaMalloc((void **) &A_d, size);
     cudaMalloc((void **) &B_d, size);
     cudaMalloc((void **) &C_d, size);
-    
+
     cudaMemcpy(A_d, A, size, cudaMemcpyHostToDevice);
     cudaMemcpy(B_d, B, size, cudaMemcpyHostToDevice);
     
-    vecAddKernel<<<ceil(n/256), 256>>>(A_d, B_d, C_d, n);
+    vecAddKernel<<<(n/256)+1, 256>>>(A_d, B_d, C_d, n);
 
     cudaMemcpy(C, C_d, size, cudaMemcpyDeviceToHost);
 
