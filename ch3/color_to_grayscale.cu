@@ -1,7 +1,4 @@
-#include <cuda_runtime.h>
-#include "color_to_grayscale.h"
-
-#define CHANNEL 3
+#include "ch3.h"
 
 __global__
 void colorToGrayscaleKernel(unsigned char* Pin, unsigned char* Pout, int width, int height){

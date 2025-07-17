@@ -1,7 +1,6 @@
-#include <cuda_runtime.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "color_to_grayscale.h"  // Added missing include
+#include "ch3.h"  // Added missing include
 
 int main() {
     int width = 4, height = 4;
