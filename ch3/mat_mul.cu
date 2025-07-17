@@ -2,9 +2,13 @@ __global__
 void matMulKernel(float* A, float* B, float* C, int width){
     int col = blockDim.x * blockIdx.x + threadIdx.x;
     int row = blockDim.y * blockIdx.y + threadIdx.y;
-
-    for(int i=0; i < width; i++){
-        C[row*width+col] += A[row*width + i] * B[i*width + col];
+    
+    if(col < width && row < width) {
+        float Pval = 0;
+        for(int i=0; i < width; i++){
+            Pval += A[row*width + i] * B[i*width + col];
+        }
+        C[row*width+col] = Pval;
     }
 }
 
@@ -24,7 +28,7 @@ void matrix_mul(float* A, float* B, float* C, int width){
 
     matMulKernel<<<grid_dim, block_dim>>>(A_d, B_d, C_d, width);
 
-    cudaMemcpy(C_d, C, size, cudaMemcpyDeviceToHost);
+    cudaMemcpy(C, C_d, size, cudaMemcpyDeviceToHost);
 
     cudaFree(A_d);
     cudaFree(B_d);

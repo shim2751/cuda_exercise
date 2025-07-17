@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <string.h>
+#include <cmath>
+
 #include "ch3.h"
 
 int main() {
@@ -85,7 +88,84 @@ int main() {
     }
     printf("Blur result: %s\n", blurCorrect ? "Correct" : "Error");
     
-    // Results output
+    // Matrix multiplication verification
+    printf("\n=== Matrix Multiplication Verification ===\n");
+    
+    int matWidth = 4;
+    float A[16] = {
+        1.0f, 2.0f, 3.0f, 4.0f,
+        5.0f, 6.0f, 7.0f, 8.0f,
+        9.0f, 10.0f, 11.0f, 12.0f,
+        13.0f, 14.0f, 15.0f, 16.0f
+    };
+    
+    float B[16] = {
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f
+    };
+    
+    float C_gpu[16];
+    float C_cpu[16];
+    
+    // Initialize result matrices to zero
+    memset(C_gpu, 0, sizeof(float) * 16);
+    memset(C_cpu, 0, sizeof(float) * 16);
+    
+    // GPU matrix multiplication
+    matrix_mul(A, B, C_gpu, matWidth);
+    
+    // CPU matrix multiplication for verification
+    for(int i = 0; i < matWidth; i++) {
+        for(int j = 0; j < matWidth; j++) {
+            C_cpu[i * matWidth + j] = 0;
+            for(int k = 0; k < matWidth; k++) {
+                C_cpu[i * matWidth + j] += A[i * matWidth + k] * B[k * matWidth + j];
+            }
+        }
+    }
+    
+    // Compare results
+    bool matMulCorrect = true;
+    const float epsilon = 1e-5f;
+    for(int i = 0; i < 16; i++) {
+        if(fabs(C_gpu[i] - C_cpu[i]) > epsilon) {
+            matMulCorrect = false;
+            break;
+        }
+    }
+    
+    printf("Matrix multiplication result: %s\n", matMulCorrect ? "Correct" : "Error");
+    
+    // Print matrix A
+    printf("\nMatrix A:\n");
+    for(int i = 0; i < matWidth; i++) {
+        for(int j = 0; j < matWidth; j++) {
+            printf("%6.1f ", A[i * matWidth + j]);
+        }
+        printf("\n");
+    }
+    
+    // Print matrix B
+    printf("\nMatrix B (Identity):\n");
+    for(int i = 0; i < matWidth; i++) {
+        for(int j = 0; j < matWidth; j++) {
+            printf("%6.1f ", B[i * matWidth + j]);
+        }
+        printf("\n");
+    }
+    
+    // Print results comparison
+    printf("\nMatrix C (GPU vs CPU):\n");
+    for(int i = 0; i < matWidth; i++) {
+        for(int j = 0; j < matWidth; j++) {
+            printf("%6.1f/%6.1f ", C_gpu[i * matWidth + j], C_cpu[i * matWidth + j]);
+        }
+        printf("\n");
+    }
+    
+    // Results output for image processing
     printf("\nOriginal RGB image:\n");
     for(int i = 0; i < height; i++) {
         for(int j = 0; j < width; j++) {
