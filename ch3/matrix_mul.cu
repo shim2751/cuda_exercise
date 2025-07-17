@@ -23,8 +23,8 @@ void matrix_mul(float* M, float* N, float* P, int width){
     cudaMemcpy(M_d, M, size, cudaMemcpyHostToDevice);
     cudaMemcpy(N_d, N, size, cudaMemcpyHostToDevice);
 
-    dim3 block_dim(ceil(width/16.0), ceil(width/16.0), 1);
-    dim3 grid_dim(16, 16, 1);
+    dim3 grid_dim(ceil(width/16.0), ceil(width/16.0), 1);
+    dim3 block_dim(16, 16, 1);
 
     matrixMulKernel<<<grid_dim, block_dim>>>(M_d, N_d, P_d, width);
 

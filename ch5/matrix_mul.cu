@@ -1,3 +1,5 @@
+#include "ch5.h"
+
 __global__
 void matrixMulKernel_ch3(float* M, float* N, float* P, int width){
     int col = blockDim.x * blockIdx.x + threadIdx.x;
@@ -23,8 +25,8 @@ void matrix_mul_ch3(float* M, float* N, float* P, int width){
     cudaMemcpy(M_d, M, size, cudaMemcpyHostToDevice);
     cudaMemcpy(N_d, N, size, cudaMemcpyHostToDevice);
 
-    dim3 block_dim(ceil(width/16.0), ceil(width/16.0), 1);
-    dim3 grid_dim(16, 16, 1);
+    dim3 grid_dim(ceil(width/16.0), ceil(width/16.0), 1);
+    dim3 block_dim(16, 16, 1);
 
     matrixMulKernel_ch3<<<grid_dim, block_dim>>>(M_d, N_d, P_d, width);
 
@@ -37,7 +39,7 @@ void matrix_mul_ch3(float* M, float* N, float* P, int width){
 
 __global__
 void matrixMulKernel_ch5(float* M, float* N, float* P, int width){
-    assert(blockDim.x == TILE_WIDTH && blockDim.y == TILE_WIDTH);
+    // assert(blockDim.x == TILE_WIDTH && blockDim.y == TILE_WIDTH);
 
     __shared__ float Mds[TILE_WIDTH][TILE_WIDTH];
     __shared__ float Nds[TILE_WIDTH][TILE_WIDTH];
@@ -45,8 +47,8 @@ void matrixMulKernel_ch5(float* M, float* N, float* P, int width){
     int bx = blockIdx.x;  int by = blockIdx.y;
     int tx = threadIdx.x; int ty = threadIdx.y;
 
-    int col = block_dim.x * bx + tx;
-    int row = block_dim.y * by + ty;
+    int col = blockDim.x * bx + tx;
+    int row = blockDim.y * by + ty;
     
     float Pvalue = 0;
 
@@ -74,8 +76,8 @@ void matrix_mul_ch5(float* M, float* N, float* P, int width){
     cudaMemcpy(M_d, M, size, cudaMemcpyHostToDevice);
     cudaMemcpy(N_d, N, size, cudaMemcpyHostToDevice);
 
-    dim3 block_dim(ceil(width/16.0), ceil(width/16.0), 1);
-    dim3 grid_dim(16, 16, 1);
+    dim3 grid_dim(ceil(width/16.0), ceil(width/16.0), 1);
+    dim3 block_dim(16, 16, 1);
 
     matrixMulKernel_ch5<<<grid_dim, block_dim>>>(M_d, N_d, P_d, width);
 

@@ -1,5 +1,5 @@
 NVCC = nvcc
-TARGET = bin/ch3
+TARGET = bin/ch5
 SOURCES = matrix_mul.cu main.cpp
 
 $(TARGET): $(SOURCES)
