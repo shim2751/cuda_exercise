@@ -1,5 +1,5 @@
 NVCC = nvcc
-TARGET = bin/ch5
+TARGET = bin/run
 SOURCES = conv.cu main.cpp
 
 $(TARGET): $(SOURCES)

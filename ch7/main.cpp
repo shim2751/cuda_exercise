@@ -1,19 +1,18 @@
 #include <iostream>
 #include <vector>
+#include <chrono>
 #include <cmath>
 #include "conv.h"
 
 // CPU reference implementation
 void convolution2D_cpu(float* N, float* F, float* P, int r, int width, int height) {
-    int inRow, inCol;
-    
     for (int row = 0; row < height; row++) {
         for (int col = 0; col < width; col++) {
             float Pval = 0.0;
             for(int i = 0; i < 2*r+1; i++){
                 for(int j = 0; j < 2*r+1; j++){
-                    inRow = row - r + i;
-                    inCol = col - r + j;
+                    int inRow = row - r + i;
+                    int inCol = col - r + j;
                     if (inRow >= 0 && inRow < height && inCol >= 0 && inCol < width)
                         Pval += N[inRow * width + inCol] * F[i * (2*r+1) + j];
                 }
@@ -24,41 +23,53 @@ void convolution2D_cpu(float* N, float* F, float* P, int r, int width, int heigh
 }
 
 int main() {
-    // Test parameters
-    const int width = 8, height = 8, r = 1;
+    const int width = 1024, height = 1024, r = 2;
     const int size = width * height;
     const int filter_size = (2*r+1) * (2*r+1);
     
-    // Host memory allocation
-    std::vector<float> h_N(size), h_F(filter_size), h_P_gpu(size), h_P_cpu(size);
+    // Memory allocation
+    std::vector<float> h_N(size), h_F(filter_size), h_P1(size), h_P2(size), h_P_cpu(size);
     
-    // Initialize input image
-    for (int i = 0; i < size; i++) {
-        h_N[i] = i % 10;
-    }
+    // Initialize data
+    for (int i = 0; i < size; i++) h_N[i] = i % 100;
+    for (int i = 0; i < filter_size; i++) h_F[i] = 1.0f / filter_size;  // Average filter
     
-    // Initialize filter (edge detection)
-    float filter[] = {-1, -1, -1, -1, 8, -1, -1, -1, -1};
-    for (int i = 0; i < filter_size; i++) {
-        h_F[i] = filter[i];
-    }
-    
-    // GPU computation
-    launch_convolution2D_basic(h_N.data(), h_F.data(), h_P_gpu.data(), r, width, height);
-    
-    // CPU reference
+    // CPU computation
     convolution2D_cpu(h_N.data(), h_F.data(), h_P_cpu.data(), r, width, height);
     
-    // Verify results
-    bool correct = true;
-    for (int i = 0; i < size; i++) {
-        float error = fabs(h_P_gpu[i] - h_P_cpu[i]);
-        if (error > 1e-5) {
-            correct = false;
-        }
-    }
+    // Warm up
+    launch_convolution2D_basic(h_N.data(), h_F.data(), h_P1.data(), r, width, height);
+    launch_convolution2D_constant_mem(h_N.data(), h_F.data(), h_P2.data(), r, width, height);
     
-    std::cout << "Verification: " << (correct ? "PASSED" : "FAILED") << std::endl;
+    // Timing basic version
+    auto start = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < 10; i++) {
+        launch_convolution2D_basic(h_N.data(), h_F.data(), h_P1.data(), r, width, height);
+    }
+    auto basic_time = std::chrono::duration<double, std::milli>(
+        std::chrono::high_resolution_clock::now() - start).count() / 10;
+    
+    // Timing constant memory version
+    start = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < 10; i++) {
+        launch_convolution2D_constant_mem(h_N.data(), h_F.data(), h_P2.data(), r, width, height);
+    }
+    auto constant_time = std::chrono::duration<double, std::milli>(
+        std::chrono::high_resolution_clock::now() - start).count() / 10;
+    
+    // Results
+    printf("Basic GPU:        %.3f ms\n", basic_time);
+    printf("Constant Memory:  %.3f ms\n", constant_time);
+    printf("Speedup:          %.2fx\n", basic_time / constant_time);
+    
+    // Verify with CPU
+    bool basic_correct = true, constant_correct = true;
+    for (int i = 0; i < size; i++) {
+        if (fabs(h_P1[i] - h_P_cpu[i]) > 1e-5) basic_correct = false;
+        if (fabs(h_P2[i] - h_P_cpu[i]) > 1e-5) constant_correct = false;
+    }
+    printf("Basic vs CPU:     %s\n", basic_correct ? "PASSED" : "FAILED");
+    printf("Constant vs CPU:  %s\n", constant_correct ? "PASSED" : "FAILED");
     
     return 0;
 }
