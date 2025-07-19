@@ -11,5 +11,7 @@ void launch_convolution2D_basic(float* h_N, float* h_F, float* h_P,
 
 void launch_convolution2D_constant_mem(float* N_h, float* F_h, float* P_h, 
                         int r, int width, int height);
-
+                        
+void launch_convolution2D_tiled(float* N_h, float* F_h, float* P_h, 
+                        int r, int width, int height);
 #endif
