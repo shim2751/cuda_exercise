@@ -36,7 +36,7 @@ void convolution2D_cpu(float* N, float* F, float* P, int r, int width, int heigh
 }
 
 float time_kernel(void (*kernel_func)(float*, float*, float*, int, int, int), 
-                  float* N, float* F, float* P, int r, int width, int height) {
+                  float* N, float* F, float* P, int r, int width, int height, int iterations =10) {
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
@@ -46,7 +46,9 @@ float time_kernel(void (*kernel_func)(float*, float*, float*, int, int, int),
     cudaDeviceSynchronize();
     
     cudaEventRecord(start);
-    kernel_func(N, F, P, r, width, height);
+    for (int i = 0; i < iterations; i++) {
+        kernel_func(N, F, P, r, width, height);
+    }
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
     
@@ -56,7 +58,7 @@ float time_kernel(void (*kernel_func)(float*, float*, float*, int, int, int),
     cudaEventDestroy(start);
     cudaEventDestroy(stop);
     
-    return elapsed_time;
+    return elapsed_time/iterations;
 }
 
 int main() {
@@ -85,14 +87,14 @@ int main() {
     float cached_tiled_time = time_kernel(launch_convolution2D_cached_tiled, h_N, h_F, h_P4, r, width, height);
 
     // Results
-    printf("Basic GPU:        %.3f ms\n", basic_time);
-    printf("Constant Memory:  %.3f ms\n", constant_time);
-    printf("Tiled:            %.3f ms\n", tiled_time);
-    printf("Cached Tiled:     %.3f ms\n\n", cached_tiled_time);
+    printf("Basic GPU:        %.3f ms  \n", basic_time);
+    printf("Constant Memory:  %.3f ms  \n", constant_time);
+    printf("Tiled:            %.3f ms  \n", tiled_time);
+    printf("Cached Tiled:     %.3f ms  \n\n", cached_tiled_time);
 
-    printf("Speedup (const):  %.2fx\n", basic_time / constant_time);
-    printf("Speedup (tiled):  %.2fx\n", basic_time / tiled_time);
-    printf("Speedup (cached_tiled):  %.2fx\n\n", basic_time / cached_tiled_time);
+    printf("Speedup (const):         %.2fx  \n", basic_time / constant_time);
+    printf("Speedup (tiled):         %.2fx  \n", basic_time / tiled_time);
+    printf("Speedup (cached_tiled):  %.2fx  \n\n", basic_time / cached_tiled_time);
     
     // Verify with CPU
     bool results[4] = {true, true, true, true};
