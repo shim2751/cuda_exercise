@@ -14,28 +14,6 @@ void matrixMulKernel_ch3(float* M, float* N, float* P, int width){
     }
 }
 
-void matrix_mul_ch3(float* M, float* N, float* P, int width){
-    float *M_d, *N_d, *P_d;
-    int size = width * width * sizeof(float);
-
-    cudaMalloc(&M_d, size);
-    cudaMalloc(&N_d, size);
-    cudaMalloc(&P_d, size);
-
-    cudaMemcpy(M_d, M, size, cudaMemcpyHostToDevice);
-    cudaMemcpy(N_d, N, size, cudaMemcpyHostToDevice);
-
-    dim3 grid_dim(ceil(width/16.0), ceil(width/16.0), 1);
-    dim3 block_dim(16, 16, 1);
-
-    matrixMulKernel_ch3<<<grid_dim, block_dim>>>(M_d, N_d, P_d, width);
-
-    cudaMemcpy(P, P_d, size, cudaMemcpyDeviceToHost);
-
-    cudaFree(M_d);
-    cudaFree(N_d);
-    cudaFree(P_d);
-}
 
 __global__
 void matrixMulKernel_ch5(float* M, float* N, float* P, int width){
@@ -74,28 +52,6 @@ void matrixMulKernel_ch5(float* M, float* N, float* P, int width){
         P[row*width + col] = Pvalue;
 }
 
-void matrix_mul_ch5(float* M, float* N, float* P, int width){
-    float *M_d, *N_d, *P_d;
-    int size = width * width * sizeof(float);
-
-    cudaMalloc(&M_d, size);
-    cudaMalloc(&N_d, size);
-    cudaMalloc(&P_d, size);
-
-    cudaMemcpy(M_d, M, size, cudaMemcpyHostToDevice);
-    cudaMemcpy(N_d, N, size, cudaMemcpyHostToDevice);
-
-    dim3 grid_dim(ceil(width/16.0), ceil(width/16.0), 1);
-    dim3 block_dim(16, 16, 1);
-
-    matrixMulKernel_ch5<<<grid_dim, block_dim>>>(M_d, N_d, P_d, width);
-
-    cudaMemcpy(P, P_d, size, cudaMemcpyDeviceToHost);
-
-    cudaFree(M_d);
-    cudaFree(N_d);
-    cudaFree(P_d);
-}
 
 __global__
 void matrixMulKernel_ch6(float* M, float* N, float* P, int width){
@@ -150,6 +106,52 @@ void matrix_mul_ch6(float* M, float* N, float* P, int width){
     dim3 block_dim(16, 16, 1);
 
     matrixMulKernel_ch6<<<grid_dim, block_dim>>>(M_d, N_d, P_d, width);
+
+    cudaMemcpy(P, P_d, size, cudaMemcpyDeviceToHost);
+
+    cudaFree(M_d);
+    cudaFree(N_d);
+    cudaFree(P_d);
+}
+
+void matrix_mul_ch3(float* M, float* N, float* P, int width){
+    float *M_d, *N_d, *P_d;
+    int size = width * width * sizeof(float);
+
+    cudaMalloc(&M_d, size);
+    cudaMalloc(&N_d, size);
+    cudaMalloc(&P_d, size);
+
+    cudaMemcpy(M_d, M, size, cudaMemcpyHostToDevice);
+    cudaMemcpy(N_d, N, size, cudaMemcpyHostToDevice);
+
+    dim3 grid_dim(ceil(width/16.0), ceil(width/16.0), 1);
+    dim3 block_dim(16, 16, 1);
+
+    matrixMulKernel_ch3<<<grid_dim, block_dim>>>(M_d, N_d, P_d, width);
+
+    cudaMemcpy(P, P_d, size, cudaMemcpyDeviceToHost);
+
+    cudaFree(M_d);
+    cudaFree(N_d);
+    cudaFree(P_d);
+}
+
+void matrix_mul_ch5(float* M, float* N, float* P, int width){
+    float *M_d, *N_d, *P_d;
+    int size = width * width * sizeof(float);
+
+    cudaMalloc(&M_d, size);
+    cudaMalloc(&N_d, size);
+    cudaMalloc(&P_d, size);
+
+    cudaMemcpy(M_d, M, size, cudaMemcpyHostToDevice);
+    cudaMemcpy(N_d, N, size, cudaMemcpyHostToDevice);
+
+    dim3 grid_dim(ceil(width/16.0), ceil(width/16.0), 1);
+    dim3 block_dim(16, 16, 1);
+
+    matrixMulKernel_ch5<<<grid_dim, block_dim>>>(M_d, N_d, P_d, width);
 
     cudaMemcpy(P, P_d, size, cudaMemcpyDeviceToHost);
 
