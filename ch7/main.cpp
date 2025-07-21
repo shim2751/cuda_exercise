@@ -3,6 +3,8 @@
 #include <chrono>
 #include <cmath>
 #include "conv.h"
+#include <stdlib.h>
+#include <time.h>
 
 // CPU reference implementation
 void convolution2D_cpu(float* N, float* F, float* P, int r, int width, int height) {
@@ -23,15 +25,16 @@ void convolution2D_cpu(float* N, float* F, float* P, int r, int width, int heigh
 }
 
 int main() {
-    const int width = 1024, height = 1024, r = FILTER_RADIUS;
+    const int width = 4096, height = 4096, r = FILTER_RADIUS;
     const int size = width * height;
     const int filter_size = (2*r+1) * (2*r+1);
     
     // Memory allocation
     std::vector<float> h_N(size), h_F(filter_size), h_P1(size), h_P2(size), h_P3(size), h_P4(size), h_P_cpu(size);
-    
+
     // Initialize data
-    for (int i = 0; i < size; i++) h_N[i] = i % 100;
+    srand(time(NULL));
+    for (int i = 0; i < size; i++) h_N[i] = rand() % 100;
     for (int i = 0; i < filter_size; i++) h_F[i] = 1.0f / filter_size;  // Average filter
     
     // CPU computation
