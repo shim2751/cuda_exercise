@@ -2,7 +2,7 @@
 #ifndef CONV_H
 #define CONV_H
 
-#define FILTER_RADIUS 2
+#define FILTER_RADIUS 7
 #define BLOCK_SIZE 32 
 #define IN_TILE_WIDTH 32 
 #define OUT_TILE_WIDTH (IN_TILE_WIDTH - 2*FILTER_RADIUS)
