@@ -23,7 +23,7 @@ void convolution2D_basic_kernel(float* N, float* F, float* P, int r, int width, 
 }
 
 __global__
-void convolution2D_constant_mem(float* N, float* P, int width, int height){
+void convolution2D_constant_mem_kernel(float* N, float* P, int width, int height){
     int col = blockDim.x * blockIdx.x + threadIdx.x;
     int row = blockDim.y * blockIdx.y + threadIdx.y;
     int inRow, inCol;
@@ -41,10 +41,11 @@ void convolution2D_constant_mem(float* N, float* P, int width, int height){
     }
     P[row * width + col] = Pval;
 }
+
 __global__
-void convolution2D_tiled(float* N, float* P, int width, int height){
-    int col = blockDim.x * blockIdx.x + threadIdx.x;
-    int row = blockDim.y * blockIdx.y + threadIdx.y;
+void convolution2D_tiled_constant_mem_kernel(float* N, float* P, int width, int height){
+    int col = OUT_TILE_WIDTH * blockIdx.x + threadIdx.x - FILTER_RADIUS;
+    int row = OUT_TILE_WIDTH * blockIdx.y + threadIdx.y - FILTER_RADIUS;
 
     __shared__ float N_s[IN_TILE_WIDTH][IN_TILE_WIDTH];
     if(row >= 0 && row < height && col >= 0 && col < width)
@@ -53,9 +54,9 @@ void convolution2D_tiled(float* N, float* P, int width, int height){
         N_s[threadIdx.y][threadIdx.x] = 0.0f;
     __syncthreads();
 
-    int tileCol = threadIdx.x - FILTER_RADIUS;
-    int tileRow = threadIdx.y - FILTER_RADIUS;
     if(row >= 0 && row < height && col >= 0 && col < width){
+        int tileCol = threadIdx.x - FILTER_RADIUS;
+        int tileRow = threadIdx.y - FILTER_RADIUS;
         if(tileRow >= 0 && tileRow < OUT_TILE_WIDTH && tileCol >= 0 && tileCol < OUT_TILE_WIDTH){
             float Pval = 0.0;
             for(int i=0; i<2*FILTER_RADIUS+1; i++){
@@ -66,7 +67,55 @@ void convolution2D_tiled(float* N, float* P, int width, int height){
             P[row * width + col] = Pval;
         }
     }
+}
 
+__global__
+void convolution2D_cached_tiled_constant_mem_kernel(float* N, float* P, int width, int height){
+    int col = blockDim.x * blockIdx.x + threadIdx.x;
+    int row = blockDim.y * blockIdx.y + threadIdx.y;
+
+    __shared__ float N_s[IN_TILE_WIDTH][IN_TILE_WIDTH];
+    if(row < height && col < width)
+        N_s[threadIdx.y][threadIdx.x] = N[row*width + col];
+    else
+        N_s[threadIdx.y][threadIdx.x] = 0.0f;
+    __syncthreads();
+
+    if(row >= 0 && row < height && col >= 0 && col < width){
+        float Pval = 0.0;
+        for(int fRow=0; fRow<2*FILTER_RADIUS+1; fRow++){
+            for(int fCol=0; fCol<2*FILTER_RADIUS+1; fCol++){
+                int iCol = threadIdx.x - FILTER_RADIUS + fCol;
+                int iRow = threadIdx.y - FILTER_RADIUS + fRow;
+
+                if (iCol >= 0 && iCol < IN_TILE_WIDTH && iRow >= 0 && iRow < IN_TILE_WIDTH ){
+                    Pval += N_s[iRow][iCol] * F_c[fRow][fCol];      
+                }
+                else{
+                    iCol = col - FILTER_RADIUS + fCol;
+                    iRow = row - FILTER_RADIUS + fRow;
+                    if (iCol >= 0 && iCol < width && iRow >= 0 && iRow < height )
+                        Pval += N[iRow*width + iCol] * F_c[fRow][fCol];  
+                }
+            }
+
+                // if (threadIdx.x - FILTER_RADIUS + fCol >= 0 &&
+                //     threadIdx.x - FILTER_RADIUS + fCol < IN_TILE_WIDTH &&
+                //     threadIdx.y - FILTER_RADIUS + fRow >= 0 &&
+                //     threadIdx.y - FILTER_RADIUS + fRow < IN_TILE_WIDTH ){
+                //     Pval += N_s[threadIdx.y - FILTER_RADIUS + fRow][threadIdx.x - FILTER_RADIUS + fCol] * F_c[fRow][fCol];      
+                // }
+                // else{
+                //     if (col - FILTER_RADIUS + fCol >= 0 &&
+                //         col - FILTER_RADIUS + fCol < width &&
+                //         row - FILTER_RADIUS + fRow >= 0 &&
+                //         row - FILTER_RADIUS + fRow < height )
+                //         Pval += N[(row - FILTER_RADIUS + fRow)*width + col - FILTER_RADIUS + fCol] * F_c[fRow][fCol];  
+                // }
+            // }
+        }
+        P[row * width + col] = Pval;
+    }
 }
 
 void launch_convolution2D_basic(float* N_h, float* F_h, float* P_h, 
@@ -118,7 +167,7 @@ void launch_convolution2D_constant_mem(float* N_h, float* F_h, float* P_h,
    dim3 grid_dim(ceil(width/16.0), ceil(height/16.0), 1);
    dim3 block_dim(16, 16, 1);
 
-   convolution2D_constant_mem<<<grid_dim, block_dim>>>(N_d, P_d, width, height);
+   convolution2D_constant_mem_kernel<<<grid_dim, block_dim>>>(N_d, P_d, width, height);
    
    // Copy result back
    cudaMemcpy(P_h, P_d, size, cudaMemcpyDeviceToHost);
@@ -144,10 +193,39 @@ void launch_convolution2D_tiled(float* N_h, float* F_h, float* P_h,
    cudaMemcpyToSymbol(F_c, F_h, filter_size);
 
    // Launch kernel
+   dim3 grid_dim(ceil(width/(float)OUT_TILE_WIDTH), ceil(height/(float)OUT_TILE_WIDTH), 1);
+   dim3 block_dim(IN_TILE_WIDTH, IN_TILE_WIDTH, 1);
+
+   convolution2D_tiled_constant_mem_kernel<<<grid_dim, block_dim>>>(N_d, P_d, width, height);
+   
+   // Copy result back
+   cudaMemcpy(P_h, P_d, size, cudaMemcpyDeviceToHost);
+   
+   // Cleanup
+   cudaFree(N_d);
+   cudaFree(P_d);
+}
+
+void launch_convolution2D_cached_tiled(float* N_h, float* F_h, float* P_h, 
+                        int r, int width, int height) {
+   int size = width * height * sizeof(float);
+   int filter_size = (2*FILTER_RADIUS+1) * (2*FILTER_RADIUS+1) * sizeof(float);
+   
+   // Device memory allocation
+   float *N_d, *P_d;
+   cudaMalloc(&N_d, size);
+   cudaMalloc(&P_d, size);
+   
+   // Copy to device
+   cudaMemcpy(N_d, N_h, size, cudaMemcpyHostToDevice);
+   
+   cudaMemcpyToSymbol(F_c, F_h, filter_size);
+
+   // Launch kernel
    dim3 grid_dim(ceil(width/16.0), ceil(height/16.0), 1);
    dim3 block_dim(16, 16, 1);
 
-   convolution2D_tiled<<<grid_dim, block_dim>>>(N_d, P_d, width, height);
+   convolution2D_cached_tiled_constant_mem_kernel<<<grid_dim, block_dim>>>(N_d, P_d, width, height);
    
    // Copy result back
    cudaMemcpy(P_h, P_d, size, cudaMemcpyDeviceToHost);
