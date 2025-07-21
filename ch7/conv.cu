@@ -98,21 +98,6 @@ void convolution2D_cached_tiled_constant_mem_kernel(float* N, float* P, int widt
                         Pval += N[iRow*width + iCol] * F_c[fRow][fCol];  
                 }
             }
-
-                // if (threadIdx.x - FILTER_RADIUS + fCol >= 0 &&
-                //     threadIdx.x - FILTER_RADIUS + fCol < IN_TILE_WIDTH &&
-                //     threadIdx.y - FILTER_RADIUS + fRow >= 0 &&
-                //     threadIdx.y - FILTER_RADIUS + fRow < IN_TILE_WIDTH ){
-                //     Pval += N_s[threadIdx.y - FILTER_RADIUS + fRow][threadIdx.x - FILTER_RADIUS + fCol] * F_c[fRow][fCol];      
-                // }
-                // else{
-                //     if (col - FILTER_RADIUS + fCol >= 0 &&
-                //         col - FILTER_RADIUS + fCol < width &&
-                //         row - FILTER_RADIUS + fRow >= 0 &&
-                //         row - FILTER_RADIUS + fRow < height )
-                //         Pval += N[(row - FILTER_RADIUS + fRow)*width + col - FILTER_RADIUS + fCol] * F_c[fRow][fCol];  
-                // }
-            // }
         }
         P[row * width + col] = Pval;
     }
@@ -134,8 +119,8 @@ void launch_convolution2D_basic(float* N_h, float* F_h, float* P_h,
    cudaMemcpy(F_d, F_h, filter_size, cudaMemcpyHostToDevice);
    
    // Launch kernel
-   dim3 grid_dim(ceil(width/16.0), ceil(height/16.0), 1);
-   dim3 block_dim(16, 16, 1);
+   dim3 grid_dim(ceil(width/(float)BLOCK_SIZE), ceil(height/(float)BLOCK_SIZE), 1);
+   dim3 block_dim(BLOCK_SIZE, BLOCK_SIZE, 1);
 
    convolution2D_basic_kernel<<<grid_dim, block_dim>>>(N_d, F_d, P_d, r, width, height);
    
@@ -164,8 +149,8 @@ void launch_convolution2D_constant_mem(float* N_h, float* F_h, float* P_h,
    cudaMemcpyToSymbol(F_c, F_h, filter_size);
 
    // Launch kernel
-   dim3 grid_dim(ceil(width/16.0), ceil(height/16.0), 1);
-   dim3 block_dim(16, 16, 1);
+   dim3 grid_dim(ceil(width/(float)BLOCK_SIZE), ceil(height/(float)BLOCK_SIZE), 1);
+   dim3 block_dim(BLOCK_SIZE, BLOCK_SIZE, 1);
 
    convolution2D_constant_mem_kernel<<<grid_dim, block_dim>>>(N_d, P_d, width, height);
    
@@ -222,8 +207,8 @@ void launch_convolution2D_cached_tiled(float* N_h, float* F_h, float* P_h,
    cudaMemcpyToSymbol(F_c, F_h, filter_size);
 
    // Launch kernel
-   dim3 grid_dim(ceil(width/16.0), ceil(height/16.0), 1);
-   dim3 block_dim(16, 16, 1);
+   dim3 grid_dim(ceil(width/(float)IN_TILE_WIDTH), ceil(height/(float)IN_TILE_WIDTH), 1);
+   dim3 block_dim(IN_TILE_WIDTH, IN_TILE_WIDTH, 1);
 
    convolution2D_cached_tiled_constant_mem_kernel<<<grid_dim, block_dim>>>(N_d, P_d, width, height);
    

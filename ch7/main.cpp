@@ -23,7 +23,7 @@ void convolution2D_cpu(float* N, float* F, float* P, int r, int width, int heigh
 }
 
 int main() {
-    const int width = 4096, height = 4096, r = 2;
+    const int width = 1024, height = 1024, r = FILTER_RADIUS;
     const int size = width * height;
     const int filter_size = (2*r+1) * (2*r+1);
     
@@ -79,6 +79,7 @@ int main() {
     printf("Basic GPU:        %.3f ms\n", basic_time);
     printf("Constant Memory:  %.3f ms\n", constant_time);
     printf("Tiled:            %.3f ms\n", tiled_time);
+    printf("Cached_tiled:     %.3f ms\n", cached_tiled_time);
     printf("Speedup (const):  %.2fx\n", basic_time / constant_time);
     printf("Speedup (tiled):  %.2fx\n", basic_time / tiled_time);
     printf("Speedup (cached_tiled):  %.2fx\n", basic_time / cached_tiled_time);
@@ -91,10 +92,10 @@ int main() {
         if (fabs(h_P3[i] - h_P_cpu[i]) > 1e-5) tiled_correct = false;
         if (fabs(h_P4[i] - h_P_cpu[i]) > 1e-5) cached_tiled_correct = false;
     }
-    printf("Basic vs CPU:     %s\n", basic_correct ? "PASSED" : "FAILED");
-    printf("Constant vs CPU:  %s\n", constant_correct ? "PASSED" : "FAILED");
-    printf("Tiled vs CPU:     %s\n", tiled_correct ? "PASSED" : "FAILED");
-    printf("Cached tiled vs CPU:     %s\n", cached_tiled_correct ? "PASSED" : "FAILED");
+    printf("Basic vs CPU:           %s\n", basic_correct ? "PASSED" : "FAILED");
+    printf("Constant vs CPU:        %s\n", constant_correct ? "PASSED" : "FAILED");
+    printf("Tiled vs CPU:           %s\n", tiled_correct ? "PASSED" : "FAILED");
+    printf("Cached tiled vs CPU:    %s\n", cached_tiled_correct ? "PASSED" : "FAILED");
     
     return 0;
 }
