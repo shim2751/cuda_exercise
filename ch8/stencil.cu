@@ -69,22 +69,27 @@ void stencil_th_coarsening_kernel(float* in, float* out, unsigned int N){       
 
     if(iStr >= 0 && iStr < N && j>=0 && j < N && k>=0 && k < N ){
         if(iStr-1 >= 0 && iStr-1 < N)
-            inPrev_s[threadIdx.y][threadIdx.x] = in[j*N + k];
-        inCur_s[threadIdx.y][threadIdx.x] = in[1*N*N + j*N + k];
+            inPrev_s[threadIdx.y][threadIdx.x] = in[(iStr-1)*N*N + j*N + k];
+        inCur_s[threadIdx.y][threadIdx.x] = in[iStr*N*N + j*N + k];
     }
 
     for(int i=iStr; i<iStr+OUT_TILE_DIM_C; i++){
         if(i + 1 >= 0 && i + 1 < N && j >= 0 && j < N && k >= 0 && k < N) 
             inNext_s[threadIdx.y][threadIdx.x] = in[(i+1)*N*N + j*N + k];
         __syncthreads();
+        if(i >= 1 && i < N-1 && j >= 1 && j < N-1 && k >= 1 && k < N-1) {
+            if(threadIdx.y >= 1 && threadIdx.y < IN_TILE_DIM_C-1
+            && threadIdx.x >= 1 && threadIdx.x < IN_TILE_DIM_C-1){
 
-        out[i*N*N + j*N + k] = c0*inCur_s[threadIdx.y][threadIdx.x]
-                            + c1*inCur_s[threadIdx.y][threadIdx.x-1]
-                            + c2*inCur_s[threadIdx.y][threadIdx.x+1]
-                            + c3*inCur_s[threadIdx.y-1][threadIdx.x]
-                            + c4*inCur_s[threadIdx.y+1][threadIdx.x]
-                            + c5*inPrev_s[threadIdx.y][threadIdx.x]
-                            + c6*inNext_s[threadIdx.y][threadIdx.x];
+                out[i*N*N + j*N + k] = c0*inCur_s[threadIdx.y][threadIdx.x]
+                                    + c1*inCur_s[threadIdx.y][threadIdx.x-1]
+                                    + c2*inCur_s[threadIdx.y][threadIdx.x+1]
+                                    + c3*inCur_s[threadIdx.y-1][threadIdx.x]
+                                    + c4*inCur_s[threadIdx.y+1][threadIdx.x]
+                                    + c5*inPrev_s[threadIdx.y][threadIdx.x]
+                                    + c6*inNext_s[threadIdx.y][threadIdx.x];
+            }
+        }
         __syncthreads();
         inPrev_s[threadIdx.y][threadIdx.x] = inCur_s[threadIdx.y][threadIdx.x];
         inCur_s[threadIdx.y][threadIdx.x] = inNext_s[threadIdx.y][threadIdx.x];
@@ -105,8 +110,8 @@ void stencil_reg_tile_kernel(float* in, float* out, unsigned int N){       //blo
 
     if(iStr >= 0 && iStr < N && j>=0 && j < N && k>=0 && k < N ){
         if(iStr-1 >= 0 && iStr-1 < N)
-            inPrev = in[j*N + k];
-        inCur = in[1*N*N + j*N + k];
+            inPrev = in[(iStr-1)*N*N + j*N + k];
+        inCur = in[iStr*N*N + j*N + k];
         inCur_s[threadIdx.y][threadIdx.x] = inCur;
     }
 
@@ -114,14 +119,18 @@ void stencil_reg_tile_kernel(float* in, float* out, unsigned int N){       //blo
         if(i + 1 >= 0 && i + 1 < N && j >= 0 && j < N && k >= 0 && k < N) 
             inNext = in[(i+1)*N*N + j*N + k];
         __syncthreads();
-
-        out[i*N*N + j*N + k] = c0*inCur
-                            + c1*inCur_s[threadIdx.y][threadIdx.x-1]
-                            + c2*inCur_s[threadIdx.y][threadIdx.x+1]
-                            + c3*inCur_s[threadIdx.y-1][threadIdx.x]
-                            + c4*inCur_s[threadIdx.y+1][threadIdx.x]
-                            + c5*inPrev
-                            + c6*inNext;
+        if(i >= 1 && i < N-1 && j >= 1 && j < N-1 && k >= 1 && k < N-1) {
+            if(threadIdx.y >= 1 && threadIdx.y < IN_TILE_DIM_C-1
+            && threadIdx.x >= 1 && threadIdx.x < IN_TILE_DIM_C-1){
+                out[i*N*N + j*N + k] = c0*inCur
+                                    + c1*inCur_s[threadIdx.y][threadIdx.x-1]
+                                    + c2*inCur_s[threadIdx.y][threadIdx.x+1]
+                                    + c3*inCur_s[threadIdx.y-1][threadIdx.x]
+                                    + c4*inCur_s[threadIdx.y+1][threadIdx.x]
+                                    + c5*inPrev
+                                    + c6*inNext;
+            }
+        }
         __syncthreads();
         inPrev = inCur_s[threadIdx.y][threadIdx.x];
         inCur = inNext;

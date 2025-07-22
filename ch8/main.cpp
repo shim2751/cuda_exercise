@@ -43,7 +43,6 @@ int main() {
     float* input = new float[size];
     float* cpu_out = new float[size];
     
-    
     // Initialize random input
     initialize_matrix(input, size);
     
@@ -58,7 +57,7 @@ int main() {
                                   STENCIL_THREAD_COARSENING, STENCIL_REGISTER_TILING};
     
     for (int i = 0; i < 4; i++) {
-        float* gpu_out = new float[size];
+        float* gpu_out = new float[size]();
         launch_stencil(input, gpu_out, N, kernels[i]);
         printf("Correct: %s\n", check_results(cpu_out, gpu_out, N) ? "✓" : "✗");
         delete[] gpu_out;
