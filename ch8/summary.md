@@ -4,7 +4,7 @@
 각 최적화 단계는 이전 단계의 한계를 극복하는 방식으로 이루어집니다.
 
 ---
-## **실험 결과**
+## **Experiment Results**
 | Kernel                | Excution time (ms) |
 |----------------------------|----------------|
 | **Basic Stencil**          | 61.550114 ms    |
@@ -15,7 +15,7 @@
 
 ---
 
-## **1단계: 기본 커널 (Baseline Kernel)**
+## **1단계: Baseline Kernel**
 
 ### 원리 및 문제점
 - 하나의 스레드가 하나의 **그리드 포인트(Grid Point)** 계산을 담당.
@@ -30,7 +30,7 @@
 
 ---
 
-## **2단계: 공유 메모리 타일링 (Shared Memory Tiling)**
+## **2단계: Shared Memory Tiling**
 
 ### 최적화 원리
 - 글로벌 메모리 접근을 최소화하기 위해 **스레드 블록(Thread Block)** 내 모든 스레드가 협력하여 **필요한 입력 타일(Input Tile)** 을 공유 메모리로 가져옴.
@@ -51,7 +51,7 @@
 
 ---
 
-## **3단계: 스레드 거칠기 (Thread Coarsening)**
+## **3단계: Thread Coarsening**
 
 ### 최적화 원리
 - 한 스레드가 **여러 포인트(컬럼)** 를 z축 방향으로 순차 계산.
@@ -68,7 +68,7 @@
 
 ---
 
-## **4단계: 레지스터 타일링 (Register Tiling)**
+## **4단계: Register Tiling**
 
 ### 최적화 원리
 - z축 방향 이웃 데이터 (**inPrev_s, inNext_s**)는 **한 스레드만 사용**.
