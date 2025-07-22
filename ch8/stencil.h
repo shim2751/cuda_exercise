@@ -2,11 +2,11 @@
 #define STENCIL_H
 
 // Stencil constants (assuming 7-point stencil coefficients)
-#define BLOCK_SIZE 16
-#define IN_TILE_DIM 16 
+#define BLOCK_SIZE 8
+#define IN_TILE_DIM 8 
 #define OUT_TILE_DIM (IN_TILE_DIM - 2)
-#define IN_TILE_DIM_C 32 
-#define OUT_TILE_DIM_C (IN_TILE_DIM - 2)
+#define IN_TILE_DIM_C 8 
+#define OUT_TILE_DIM_C (IN_TILE_DIM_C - 2)
 
 // Stencil kernel types
 typedef enum {

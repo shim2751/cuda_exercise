@@ -38,7 +38,7 @@ bool check_results(float* cpu, float* gpu, int N) {
 
 int main() {
     const int N = 256;
-    int size = N * N * N * sizeof(float);
+    int size = N * N * N;
     
     float* input = new float[size];
     float* cpu_out = new float[size];
@@ -56,7 +56,7 @@ int main() {
     // GPU tests
     stencil_kernel_t kernels[] = {STENCIL_BASIC, STENCIL_SHARED_MEMORY, 
                                   STENCIL_THREAD_COARSENING, STENCIL_REGISTER_TILING};
-
+    
     for (int i = 0; i < 4; i++) {
         float* gpu_out = new float[size];
         launch_stencil(input, gpu_out, N, kernels[i]);
