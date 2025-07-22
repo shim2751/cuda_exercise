@@ -1,4 +1,4 @@
-# 스텐실 커널의 점진적 최적화 원리
+# Progressive Optimization Methods of Stencil Kernels
 
 스텐실(Stencil) 계산의 커널 최적화는 **데이터 재사용성(Data Reuse)** 을 극대화하여 GPU의 느린 글로벌 메모리(Global Memory) 접근을 최소화하고, 빠른 온칩 메모리(On-chip Memory), 즉 **공유 메모리(Shared Memory)** 와 **레지스터(Register)** 를 효율적으로 활용하는 방향으로 점진적으로 진행됩니다.  
 각 최적화 단계는 이전 단계의 한계를 극복하는 방식으로 이루어집니다.
