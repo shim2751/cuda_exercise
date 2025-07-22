@@ -4,6 +4,13 @@
 각 최적화 단계는 이전 단계의 한계를 극복하는 방식으로 이루어집니다.
 
 ---
+## **실험 결과**
+[Basic Stencil] Kernel execution time: 61.550114 ms
+[Shared Memory Stencil] Kernel execution time: 0.346720 ms
+[Thread Coarsening Stencil] Kernel execution time: 0.276576 ms
+[Register Tiling Stencil] Kernel execution time: 0.249760 ms
+
+---
 
 ## **1단계: 기본 커널 (Baseline Kernel)**
 
