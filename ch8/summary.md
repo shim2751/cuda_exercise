@@ -5,10 +5,13 @@
 
 ---
 ## **실험 결과**
-[Basic Stencil] Kernel execution time: 61.550114 ms
-[Shared Memory Stencil] Kernel execution time: 0.346720 ms
-[Thread Coarsening Stencil] Kernel execution time: 0.276576 ms
-[Register Tiling Stencil] Kernel execution time: 0.249760 ms
+| Kernel                | Excution time (ms) |
+|----------------------------|----------------|
+| **Basic Stencil**          | 61.550114 ms    |
+| **Shared Memory Stencil**  | 0.346720 ms     |
+| **Thread Coarsening Stencil** | 0.276576 ms  |
+| **Register Tiling Stencil**   | 0.249760 ms  |
+
 
 ---
 
