@@ -1,5 +1,6 @@
 
 #include "conv.h"
+#include <cstdio>
 __constant__ float F_c[2*FILTER_RADIUS+1][2*FILTER_RADIUS+1];
 
 __global__
@@ -103,119 +104,100 @@ void convolution2D_cached_tiled_constant_mem_kernel(float* N, float* P, int widt
     }
 }
 
-void launch_convolution2D_basic(float* N_h, float* F_h, float* P_h, 
-                        int r, int width, int height) {
-   int size = width * height * sizeof(float);
-   int filter_size = (2*r+1) * (2*r+1) * sizeof(float);
-   
-   // Device memory allocation
-   float *N_d, *F_d, *P_d;
-   cudaMalloc(&N_d, size);
-   cudaMalloc(&F_d, filter_size);
-   cudaMalloc(&P_d, size);
-   
-   // Copy to device
-   cudaMemcpy(N_d, N_h, size, cudaMemcpyHostToDevice);
-   cudaMemcpy(F_d, F_h, filter_size, cudaMemcpyHostToDevice);
-   
-   // Launch kernel
-   dim3 grid_dim(ceil(width/(float)BLOCK_SIZE), ceil(height/(float)BLOCK_SIZE), 1);
-   dim3 block_dim(BLOCK_SIZE, BLOCK_SIZE, 1);
-
-   convolution2D_basic_kernel<<<grid_dim, block_dim>>>(N_d, F_d, P_d, r, width, height);
-   
-   // Copy result back
-   cudaMemcpy(P_h, P_d, size, cudaMemcpyDeviceToHost);
-   
-   // Cleanup
-   cudaFree(N_d);
-   cudaFree(F_d);
-   cudaFree(P_d);
-}
-
-void launch_convolution2D_constant_mem(float* N_h, float* F_h, float* P_h, 
-                        int r, int width, int height) {
-   int size = width * height * sizeof(float);
-   int filter_size = (2*FILTER_RADIUS+1) * (2*FILTER_RADIUS+1) * sizeof(float);
-   
-   // Device memory allocation
-   float *N_d, *P_d;
-   cudaMalloc(&N_d, size);
-   cudaMalloc(&P_d, size);
-   
-   // Copy to device
-   cudaMemcpy(N_d, N_h, size, cudaMemcpyHostToDevice);
-   
-   cudaMemcpyToSymbol(F_c, F_h, filter_size);
-
-   // Launch kernel
-   dim3 grid_dim(ceil(width/(float)BLOCK_SIZE), ceil(height/(float)BLOCK_SIZE), 1);
-   dim3 block_dim(BLOCK_SIZE, BLOCK_SIZE, 1);
-
-   convolution2D_constant_mem_kernel<<<grid_dim, block_dim>>>(N_d, P_d, width, height);
-   
-   // Copy result back
-   cudaMemcpy(P_h, P_d, size, cudaMemcpyDeviceToHost);
-   
-   // Cleanup
-   cudaFree(N_d);
-   cudaFree(P_d);
-}
-
-void launch_convolution2D_tiled(float* N_h, float* F_h, float* P_h, 
-                        int r, int width, int height) {
-   int size = width * height * sizeof(float);
-   int filter_size = (2*FILTER_RADIUS+1) * (2*FILTER_RADIUS+1) * sizeof(float);
-   
-   // Device memory allocation
-   float *N_d, *P_d;
-   cudaMalloc(&N_d, size);
-   cudaMalloc(&P_d, size);
-   
-   // Copy to device
-   cudaMemcpy(N_d, N_h, size, cudaMemcpyHostToDevice);
-   
-   cudaMemcpyToSymbol(F_c, F_h, filter_size);
-
-   // Launch kernel
-   dim3 grid_dim(ceil(width/(float)OUT_TILE_WIDTH), ceil(height/(float)OUT_TILE_WIDTH), 1);
-   dim3 block_dim(IN_TILE_WIDTH, IN_TILE_WIDTH, 1);
-
-   convolution2D_tiled_constant_mem_kernel<<<grid_dim, block_dim>>>(N_d, P_d, width, height);
-   
-   // Copy result back
-   cudaMemcpy(P_h, P_d, size, cudaMemcpyDeviceToHost);
-   
-   // Cleanup
-   cudaFree(N_d);
-   cudaFree(P_d);
-}
-
-void launch_convolution2D_cached_tiled(float* N_h, float* F_h, float* P_h, 
-                        int r, int width, int height) {
-   int size = width * height * sizeof(float);
-   int filter_size = (2*FILTER_RADIUS+1) * (2*FILTER_RADIUS+1) * sizeof(float);
-   
-   // Device memory allocation
-   float *N_d, *P_d;
-   cudaMalloc(&N_d, size);
-   cudaMalloc(&P_d, size);
-   
-   // Copy to device
-   cudaMemcpy(N_d, N_h, size, cudaMemcpyHostToDevice);
-   
-   cudaMemcpyToSymbol(F_c, F_h, filter_size);
-
-   // Launch kernel
-   dim3 grid_dim(ceil(width/(float)IN_TILE_WIDTH), ceil(height/(float)IN_TILE_WIDTH), 1);
-   dim3 block_dim(IN_TILE_WIDTH, IN_TILE_WIDTH, 1);
-
-   convolution2D_cached_tiled_constant_mem_kernel<<<grid_dim, block_dim>>>(N_d, P_d, width, height);
-   
-   // Copy result back
-   cudaMemcpy(P_h, P_d, size, cudaMemcpyDeviceToHost);
-   
-   // Cleanup
-   cudaFree(N_d);
-   cudaFree(P_d);
+// Unified launch function
+void launch_convolution2D(float* N_h, float* F_h, float* P_h, 
+                         int r, int width, int height, conv_kernel_t kernel_type) {
+    int size = width * height * sizeof(float);
+    int filter_size = (2*r+1) * (2*r+1) * sizeof(float);
+    
+    // Create CUDA events for timing
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    
+    // Device memory allocation
+    float *N_d, *F_d, *P_d;
+    cudaMalloc(&N_d, size);
+    if (kernel_type == CONV_BASIC) {
+        cudaMalloc(&F_d, filter_size);
+    }
+    cudaMalloc(&P_d, size);
+    
+    // Copy to device
+    cudaMemcpy(N_d, N_h, size, cudaMemcpyHostToDevice);
+    if (kernel_type == CONV_BASIC) {
+        cudaMemcpy(F_d, F_h, filter_size, cudaMemcpyHostToDevice);
+    } else {
+        // Copy filter to constant memory for other kernels
+        cudaMemcpyToSymbol(F_c, F_h, filter_size);
+    }
+    
+    // Record start time
+    cudaEventRecord(start);
+    
+    // Launch appropriate kernel based on type
+    switch(kernel_type) {
+        case CONV_BASIC: {
+            dim3 grid_dim(ceil(width/(float)BLOCK_SIZE), ceil(height/(float)BLOCK_SIZE), 1);
+            dim3 block_dim(BLOCK_SIZE, BLOCK_SIZE, 1);
+            convolution2D_basic_kernel<<<grid_dim, block_dim>>>(N_d, F_d, P_d, r, width, height);
+            break;
+        }
+        case CONV_CONSTANT_MEM: {
+            dim3 grid_dim(ceil(width/(float)BLOCK_SIZE), ceil(height/(float)BLOCK_SIZE), 1);
+            dim3 block_dim(BLOCK_SIZE, BLOCK_SIZE, 1);
+            convolution2D_constant_mem_kernel<<<grid_dim, block_dim>>>(N_d, P_d, width, height);
+            break;
+        }
+        case CONV_TILED: {
+            dim3 grid_dim(ceil(width/(float)OUT_TILE_WIDTH), ceil(height/(float)OUT_TILE_WIDTH), 1);
+            dim3 block_dim(IN_TILE_WIDTH, IN_TILE_WIDTH, 1);
+            convolution2D_tiled_constant_mem_kernel<<<grid_dim, block_dim>>>(N_d, P_d, width, height);
+            break;
+        }
+        case CONV_CACHED_TILED: {
+            dim3 grid_dim(ceil(width/(float)IN_TILE_WIDTH), ceil(height/(float)IN_TILE_WIDTH), 1);
+            dim3 block_dim(IN_TILE_WIDTH, IN_TILE_WIDTH, 1);
+            convolution2D_cached_tiled_constant_mem_kernel<<<grid_dim, block_dim>>>(N_d, P_d, width, height);
+            break;
+        }
+        default: {
+            dim3 grid_dim(ceil(width/(float)BLOCK_SIZE), ceil(height/(float)BLOCK_SIZE), 1);
+            dim3 block_dim(BLOCK_SIZE, BLOCK_SIZE, 1);
+            convolution2D_basic_kernel<<<grid_dim, block_dim>>>(N_d, F_d, P_d, r, width, height);
+            break;
+        }
+    }
+    
+    // Record stop time
+    cudaEventRecord(stop);
+    
+    // Wait for kernel to complete
+    cudaEventSynchronize(stop);
+    
+    // Calculate elapsed time
+    float milliseconds = 0;
+    cudaEventElapsedTime(&milliseconds, start, stop);
+    
+    // Print timing information
+    const char* kernel_names[] = {
+        "Basic GPU",
+        "Constant Memory",
+        "Tiled",
+        "Cached Tiled"
+    };
+    printf("[%s] Kernel execution time: %.3f ms\n", 
+           kernel_names[kernel_type], milliseconds);
+    
+    // Copy result back
+    cudaMemcpy(P_h, P_d, size, cudaMemcpyDeviceToHost);
+    
+    // Cleanup
+    cudaFree(N_d);
+    if (kernel_type == CONV_BASIC) {
+        cudaFree(F_d);
+    }
+    cudaFree(P_d);
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
 }

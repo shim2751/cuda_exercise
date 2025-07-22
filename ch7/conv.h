@@ -7,15 +7,16 @@
 #define IN_TILE_WIDTH 32 
 #define OUT_TILE_WIDTH (IN_TILE_WIDTH - 2*FILTER_RADIUS)
 
-void launch_convolution2D_basic(float* h_N, float* h_F, float* h_P, 
-                         int r, int width, int height);
+// Convolution kernel types
+typedef enum {
+    CONV_BASIC = 0,
+    CONV_CONSTANT_MEM = 1,
+    CONV_TILED = 2,
+    CONV_CACHED_TILED = 3
+} conv_kernel_t;
 
-void launch_convolution2D_constant_mem(float* N_h, float* F_h, float* P_h, 
-                        int r, int width, int height);
+// Unified launch function
+void launch_convolution2D(float* N_h, float* F_h, float* P_h, 
+                         int r, int width, int height, conv_kernel_t kernel_type);
 
-void launch_convolution2D_tiled(float* N_h, float* F_h, float* P_h, 
-                        int r, int width, int height);
-                        
-void launch_convolution2D_cached_tiled(float* N_h, float* F_h, float* P_h, 
-                        int r, int width, int height);
 #endif

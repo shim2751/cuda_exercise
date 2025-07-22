@@ -1,11 +1,9 @@
-#include <iostream>
-#include <vector>
-#include <cmath>
-#include "conv.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include <cuda_runtime.h>
+#include <math.h>
 #include <random>
+#include "conv.h"
 
 void initialize_matrix(float* matrix, int size) {
     std::random_device rd;
@@ -35,30 +33,13 @@ void convolution2D_cpu(float* N, float* F, float* P, int r, int width, int heigh
     }
 }
 
-float time_kernel(void (*kernel_func)(float*, float*, float*, int, int, int), 
-                  float* N, float* F, float* P, int r, int width, int height, int iterations =10) {
-    cudaEvent_t start, stop;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
-    
-    // Warm up
-    kernel_func(N, F, P, r, width, height);
-    cudaDeviceSynchronize();
-    
-    cudaEventRecord(start);
-    for (int i = 0; i < iterations; i++) {
-        kernel_func(N, F, P, r, width, height);
+bool check_results(float* cpu, float* gpu, int size) {
+    for (int i = 0; i < size; i++) {
+        if (fabs(cpu[i] - gpu[i]) > 1e-4) {
+            return false;
+        }
     }
-    cudaEventRecord(stop);
-    cudaEventSynchronize(stop);
-    
-    float elapsed_time;
-    cudaEventElapsedTime(&elapsed_time, start, stop);
-    
-    cudaEventDestroy(start);
-    cudaEventDestroy(stop);
-    
-    return elapsed_time/iterations;
+    return true;
 }
 
 int main() {
@@ -66,57 +47,37 @@ int main() {
     const int size = width * height;
     const int filter_size = (2*r+1) * (2*r+1);
     
-    float* h_N = new float[size];
-    float* h_F = new float[filter_size]; 
-
-    float* h_P_cpu = new float[size];  
-    float* h_P1 = new float[size];
-    float* h_P2 = new float[size];
-    float* h_P3 = new float[size];
-    float* h_P4 = new float[size];
+    float* N_h = new float[size];
+    float* F_h = new float[filter_size]; 
+    float* cpu_out = new float[size];  
 
     // Initialize data
-    initialize_matrix(h_N, size);
-    initialize_matrix(h_F, filter_size);
+    initialize_matrix(N_h, size);
+    initialize_matrix(F_h, filter_size);
 
-    convolution2D_cpu(h_N, h_F, h_P_cpu, r, width, height);
-    // Time GPU kernels
-    float basic_time = time_kernel(launch_convolution2D_basic, h_N, h_F, h_P1, r, width, height);
-    float constant_time = time_kernel(launch_convolution2D_constant_mem, h_N, h_F, h_P2, r, width, height);
-    float tiled_time = time_kernel(launch_convolution2D_tiled, h_N, h_F, h_P3, r, width, height);
-    float cached_tiled_time = time_kernel(launch_convolution2D_cached_tiled, h_N, h_F, h_P4, r, width, height);
+    // CPU computation for verification
+    clock_t start = clock();
+    convolution2D_cpu(N_h, F_h, cpu_out, r, width, height);
+    double cpu_time = (double)(clock() - start) / CLOCKS_PER_SEC * 1000;
+    printf("CPU: %.2f ms\n\n", cpu_time);
 
-    // Results
-    printf("Basic GPU:        %.3f ms  \n", basic_time);
-    printf("Constant Memory:  %.3f ms  \n", constant_time);
-    printf("Tiled:            %.3f ms  \n", tiled_time);
-    printf("Cached Tiled:     %.3f ms  \n\n", cached_tiled_time);
+    // GPU kernel tests using unified launch function
+    conv_kernel_t kernels[] = {CONV_BASIC, CONV_CONSTANT_MEM, CONV_TILED, CONV_CACHED_TILED};
+    const char* names[] = {"Basic", "Constant Memory", "Tiled", "Cached Tiled"};
 
-    printf("Speedup (const):         %.2fx  \n", basic_time / constant_time);
-    printf("Speedup (tiled):         %.2fx  \n", basic_time / tiled_time);
-    printf("Speedup (cached_tiled):  %.2fx  \n\n", basic_time / cached_tiled_time);
-    
-    // Verify with CPU
-    bool results[4] = {true, true, true, true};
-    std::vector<float*> outputs = {h_P1, h_P2, h_P3, h_P4};
-    const char* names[] = {"Basic", "Constant", "Tiled", "Cached Tiled"};
-    
-    for (int k = 0; k < 4; k++) {
-        for (int i = 0; i < size; i++) {
-            if (fabs(outputs[k][i] - h_P_cpu[i]) > 1e-4) {
-                results[k] = false;
-                break;
-            }
-        }
-        printf("%s vs CPU: %s\n", names[k], results[k] ? "PASSED" : "FAILED");
+    // Run all kernels and collect results
+    for (int i = 0; i < 4; i++) {
+        float* gpu_out = new float[size]();
+        // Launch kernel (timing is done inside the function)
+        launch_convolution2D(N_h, F_h, gpu_out, r, width, height, kernels[i]);
+        printf("Correct: %s\n", check_results(cpu_out, gpu_out, size) ? "✓" : "✗");
+        delete[] gpu_out;
     }
     
-    delete[] h_N;
-    delete[] h_F;
-    delete[] h_P1;
-    delete[] h_P2;
-    delete[] h_P3;
-    delete[] h_P4;
-    delete[] h_P_cpu;
+    // Cleanup
+    delete[] N_h;
+    delete[] F_h;
+    delete[] cpu_out;
+    
     return 0;
 }
