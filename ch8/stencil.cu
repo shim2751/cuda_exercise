@@ -1,3 +1,17 @@
+#include "stencil.h"
+#include <cuda_runtime.h>
+#include <cmath>
+#include <cstdio>
+
+// Stencil coefficients in constant memory
+__constant__ float c0 = -6.0f;
+__constant__ float c1 = 1.0f;
+__constant__ float c2 = 1.0f;
+__constant__ float c3 = 1.0f;
+__constant__ float c4 = 1.0f;
+__constant__ float c5 = 1.0f;
+__constant__ float c6 = 1.0f;
+
 __global__
 void stencil_kernel(float* in, float* out, unsigned int N){
     unsigned int i = blockIdx.z*blockDim.z + threadIdx.z;
@@ -113,4 +127,108 @@ void stencil_reg_tile_kernel(float* in, float* out, unsigned int N){       //blo
         inCur = inNext;
         inCur_s[threadIdx.y][threadIdx.x] = inNext;
     }
+}
+
+// Unified launch function
+void launch_stencil(float* in_h, float* out_h, unsigned int N, stencil_kernel_t kernel_type) {
+    int size = N * N * N * sizeof(float);
+    
+    // Create CUDA events for timing
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    
+    // Device memory allocation
+    float *in_d, *out_d;
+    cudaMalloc(&in_d, size);
+    cudaMalloc(&out_d, size);
+    
+    // Copy input to device
+    cudaMemcpy(in_d, in_h, size, cudaMemcpyHostToDevice);
+    
+    // Record start time
+    cudaEventRecord(start);
+    
+    // Launch appropriate kernel based on type
+    switch(kernel_type) {
+        case STENCIL_BASIC: {
+            dim3 grid_dim(
+                (N + BLOCK_SIZE - 1) / BLOCK_SIZE,
+                (N + BLOCK_SIZE - 1) / BLOCK_SIZE,
+                (N + BLOCK_SIZE - 1) / BLOCK_SIZE
+            );
+            dim3 block_dim(BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+            stencil_kernel<<<grid_dim, block_dim>>>(in_d, out_d, N);
+            break;
+        }
+        case STENCIL_SHARED_MEMORY: {
+            dim3 grid_dim(
+                (N + OUT_TILE_DIM - 1) / OUT_TILE_DIM,
+                (N + OUT_TILE_DIM - 1) / OUT_TILE_DIM,
+                (N + OUT_TILE_DIM - 1) / OUT_TILE_DIM
+            );
+            dim3 block_dim(IN_TILE_DIM, IN_TILE_DIM, IN_TILE_DIM);
+            stencil_sm_kernel<<<grid_dim, block_dim>>>(in_d, out_d, N);
+            break;
+        }
+        case STENCIL_THREAD_COARSENING: {
+            dim3 grid_dim(
+                (N + OUT_TILE_DIM_C - 1) / OUT_TILE_DIM_C,
+                (N + OUT_TILE_DIM_C - 1) / OUT_TILE_DIM_C,
+                (N + OUT_TILE_DIM_C - 1) / OUT_TILE_DIM_C
+            );
+            dim3 block_dim(IN_TILE_DIM_C, IN_TILE_DIM_C, 1);
+            stencil_th_coarsening_kernel<<<grid_dim, block_dim>>>(in_d, out_d, N);
+            break;
+        }
+        case STENCIL_REGISTER_TILING: {
+            dim3 grid_dim(
+                (N + OUT_TILE_DIM_C - 1) / OUT_TILE_DIM_C,
+                (N + OUT_TILE_DIM_C - 1) / OUT_TILE_DIM_C,
+                (N + OUT_TILE_DIM_C - 1) / OUT_TILE_DIM_C
+            );
+            dim3 block_dim(IN_TILE_DIM_C, IN_TILE_DIM_C, 1);
+            stencil_reg_tile_kernel<<<grid_dim, block_dim>>>(in_d, out_d, N);
+            break;
+        }
+        default:
+            // Default to basic kernel
+            dim3 grid_dim(
+                (N + BLOCK_SIZE - 1) / BLOCK_SIZE,
+                (N + BLOCK_SIZE - 1) / BLOCK_SIZE,
+                (N + BLOCK_SIZE - 1) / BLOCK_SIZE
+            );
+            dim3 block_dim(BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+            stencil_kernel<<<grid_dim, block_dim>>>(in_d, out_d, N);
+            break;
+    }
+    
+    // Record stop time
+    cudaEventRecord(stop);
+    
+    // Wait for kernel to complete
+    cudaEventSynchronize(stop);
+    
+    // Calculate elapsed time
+    float milliseconds = 0;
+    cudaEventElapsedTime(&milliseconds, start, stop);
+    
+    // Print timing information
+    const char* kernel_names[] = {
+        "Basic Stencil",
+        "Shared Memory Stencil", 
+        "Thread Coarsening Stencil",
+        "Register Tiling Stencil"
+    };
+    printf("[%s] Kernel execution time: %.3f ms\n", 
+           kernel_names[kernel_type], milliseconds);
+    
+    // Copy result back
+    cudaMemcpy(out_h, out_d, size, cudaMemcpyDeviceToHost);
+    
+    // Cleanup
+    cudaFree(in_d);
+    cudaFree(out_d);
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
 }
