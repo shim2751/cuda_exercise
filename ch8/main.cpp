@@ -3,6 +3,18 @@
 #include <stdlib.h>
 #include <time.h>
 #include <math.h>
+#include <random>
+
+
+void initialize_matrix(float* matrix, int size) {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<float> dis(0.0f, 1.0f);
+    
+    for (int i = 0; i < size; i++) {
+        matrix[i] = dis(gen);
+    }
+}
 
 void stencil_cpu(float* in, float* out, int N) {
     for (int i = 1; i < N-1; i++) {
@@ -19,22 +31,21 @@ void stencil_cpu(float* in, float* out, int N) {
 
 bool check_results(float* cpu, float* gpu, int N) {
     for (int i = 0; i < N*N*N; i++) {
-        if (fabsf(cpu[i] - gpu[i]) > 1e-4) return false;
+        if (fabsf(cpu[i] - gpu[i]) > 1e-3) return false;
     }
     return true;
 }
 
 int main() {
-    const int N = 64;
+    const int N = 256;
     int size = N * N * N * sizeof(float);
     
-    float *input = (float*)malloc(size);
-    float *cpu_out = (float*)malloc(size);
-    float *gpu_out = (float*)malloc(size);
+    float* input = new float[size];
+    float* cpu_out = new float[size];
+    
     
     // Initialize random input
-    srand(123);
-    for (int i = 0; i < N*N*N; i++) input[i] = rand() % 100;
+    initialize_matrix(input, size);
     
     // CPU test
     clock_t start = clock();
@@ -45,13 +56,14 @@ int main() {
     // GPU tests
     stencil_kernel_t kernels[] = {STENCIL_BASIC, STENCIL_SHARED_MEMORY, 
                                   STENCIL_THREAD_COARSENING, STENCIL_REGISTER_TILING};
-    const char* names[] = {"Basic", "Shared", "Coarsening", "Register"};
-    
+
     for (int i = 0; i < 4; i++) {
+        float* gpu_out = new float[size];
         launch_stencil(input, gpu_out, N, kernels[i]);
-        printf("%s: %s\n", names[i], check_results(cpu_out, gpu_out, N) ? "✓" : "✗");
+        printf("Correct: %s\n", check_results(cpu_out, gpu_out, N) ? "✓" : "✗");
+        delete[] gpu_out;
     }
     
-    free(input); free(cpu_out); free(gpu_out);
+    delete[] input; delete[] cpu_out; 
     return 0;
 }

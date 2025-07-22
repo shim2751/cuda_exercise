@@ -220,7 +220,7 @@ void launch_stencil(float* in_h, float* out_h, unsigned int N, stencil_kernel_t 
         "Thread Coarsening Stencil",
         "Register Tiling Stencil"
     };
-    printf("[%s] Kernel execution time: %.3f ms\n", 
+    printf("[%s] Kernel execution time: %.6f ms\n", 
            kernel_names[kernel_type], milliseconds);
     
     // Copy result back
