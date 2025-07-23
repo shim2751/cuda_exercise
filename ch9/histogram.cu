@@ -50,15 +50,12 @@ void histo_private_w_SM_kernel(char* data, unsigned int length, unsigned int * h
         }
     }
 
-    //block 0 already stored proper place.
-    if(blockIdx.x > 0){
-        __syncthreads();
-        // each thread could work multiple times if blockDim.x is smaller than # of bin elements.
-        for(unsigned int bin=threadIdx.x; bin < NUM_BINS; bin += blockDim.x){
-            int binVal = histo_s[bin];
-            if (binVal > 0)
-                atomicAdd(&(histo[bin]),binVal);
-        }
+    __syncthreads();
+    // each thread could work multiple times if blockDim.x is smaller than # of bin elements.
+    for(unsigned int bin=threadIdx.x; bin < NUM_BINS; bin += blockDim.x){
+        int binVal = histo_s[bin];
+        if (binVal > 0)
+            atomicAdd(&(histo[bin]),binVal);
     }
 }
 
@@ -94,7 +91,7 @@ void histo_coarsening_interleaved_kernel(char* data, unsigned int length, unsign
     }
     __syncthreads();
     unsigned int tid = blockIdx.x*blockDim.x + threadIdx.x;
-    for(unsigned int i=tid*CFACTOR; i<length; i+=blockDim.x*gridDim.x) {
+    for(unsigned int i=tid; i<length; i+=blockDim.x*gridDim.x) {
         int pos = data[i] - 'a';
         if (pos >= 0 && pos < 26) {
             atomicAdd(&(histo_s[pos/4]), 1);
@@ -120,7 +117,7 @@ void histo_aggregated_kernel(char* data, unsigned int length, unsigned int * his
     unsigned int accumulator = 0;
     int prev_pos = 0;
     unsigned int tid = blockIdx.x*blockDim.x + threadIdx.x;
-    for(unsigned int i=tid*CFACTOR; i<length; i+=blockDim.x*gridDim.x) {
+    for(unsigned int i=tid; i<length; i+=blockDim.x*gridDim.x) {
         int pos = data[i] - 'a';
         if (pos >= 0 && pos < 26){
             int bin = pos/4;
@@ -258,7 +255,7 @@ void launch_histogram(char* data_h, unsigned int* histo_h,
         "Coarsened Interleaved",
         "Aggregated"
     };
-    printf("[%s] Kernel execution time: %.3f ms\n", 
+    printf("[%s] Kernel execution time: %.6f ms\n", 
            kernel_names[kernel_type], milliseconds);
     
     // Copy result back to host

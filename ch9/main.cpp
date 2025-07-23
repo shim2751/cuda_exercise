@@ -98,11 +98,6 @@ int main() {
         // Verify correctness
         printf("Correct: %s\n", check_results(cpu_histo, gpu_histo, NUM_BINS) ? "✓" : "✗");
         
-        // Optionally print first result for comparison
-        if (i == 0) {
-            print_histogram(gpu_histo, "GPU");
-        }
-        
         delete[] gpu_histo;
         printf("\n");
     }
