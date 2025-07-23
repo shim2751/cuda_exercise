@@ -4,6 +4,17 @@
 최적화는 **원자적 연산의 도입 → 경쟁(contention) 감소 → 메모리 접근 패턴 개선**의 순서로 점진적으로 이루어집니다.
 
 ---
+## **Experiment Results**
+| Kernel                | Excution time (ms) |
+|----------------------------|----------------|
+| **Basic Atomic**          | 53.931839 ms    |
+| **Privatized Global Memory**  | 0.040032 ms     |
+| **Privatized Shared Memory** | 0.019744 ms  |
+| **Coarsened Contiguous**   | 0.018432 ms  |
+| **Coarsened Interleaved**   | 0.016640 ms  |
+| **Aggregation**   | 0.023552 ms  |
+
+---
 
 ## **1단계: Atomic Operation**
 
