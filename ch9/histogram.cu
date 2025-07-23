@@ -4,7 +4,7 @@
 __global__
 void histo_kernel(char* data, unsigned int length, unsigned int * histo){
     unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (length > 0){
+    if (i < length){
         int pos = data[i] - 'a';
         if (pos >= 0 && pos < 26){
             atomicAdd(&(histo[pos/4]),1);
@@ -15,7 +15,7 @@ void histo_kernel(char* data, unsigned int length, unsigned int * histo){
 __global__
 void histo_private_w_GM_kernel(char* data, unsigned int length, unsigned int * histo){
     unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (length > 0){
+    if (i < length){
         int pos = data[i] - 'a';
         if (pos >= 0 && pos < 26){
             atomicAdd(&(histo[NUM_BINS * blockIdx.x + pos/4]),1);
@@ -43,7 +43,7 @@ void histo_private_w_SM_kernel(char* data, unsigned int length, unsigned int * h
         histo_s[bin] = 0u;
     }
     __syncthreads();
-    if (length > 0){
+    if (i < length){
         int pos = data[i] - 'a';
         if (pos >= 0 && pos < 26){
             atomicAdd(&(histo_s[pos/4]),1);
@@ -56,7 +56,7 @@ void histo_private_w_SM_kernel(char* data, unsigned int length, unsigned int * h
         // each thread could work multiple times if blockDim.x is smaller than # of bin elements.
         for(unsigned int bin=threadIdx.x; bin < NUM_BINS; bin += blockDim.x){
             int binVal = histo_s[bin];
-            if (binVal > 0 )
+            if (binVal > 0)
                 atomicAdd(&(histo[bin]),binVal);
         }
     }
@@ -81,7 +81,7 @@ void histo_coarsening_contiguous_kernel(char* data, unsigned int length, unsigne
     // each thread could work multiple times if blockDim.x is smaller than # of bin elements.
     for(unsigned int bin=threadIdx.x; bin < NUM_BINS; bin += blockDim.x){
         int binVal = histo_s[bin];
-        if (binVal > 0 )
+        if (binVal > 0)
             atomicAdd(&(histo[bin]),binVal);
     }
 }
@@ -262,28 +262,7 @@ void launch_histogram(char* data_h, unsigned int* histo_h,
            kernel_names[kernel_type], milliseconds);
     
     // Copy result back to host
-    if (kernel_type == HISTOGRAM_PRIVATIZED_GLOBAL) {
-        // For privatized global memory, need to merge results from all blocks
-        int num_blocks = (length + BLOCK_SIZE - 1) / BLOCK_SIZE;
-        unsigned int* temp_histo = new unsigned int[NUM_BINS * num_blocks];
-        cudaMemcpy(temp_histo, histo_d, histo_size * num_blocks, cudaMemcpyDeviceToHost);
-        
-        // Initialize output histogram
-        for (int i = 0; i < NUM_BINS; i++) {
-            histo_h[i] = 0;
-        }
-        
-        // Merge all block results
-        for (int block = 0; block < num_blocks; block++) {
-            for (int bin = 0; bin < NUM_BINS; bin++) {
-                histo_h[bin] += temp_histo[block * NUM_BINS + bin];
-            }
-        }
-        
-        delete[] temp_histo;
-    } else {
-        cudaMemcpy(histo_h, histo_d, histo_size, cudaMemcpyDeviceToHost);
-    }
+    cudaMemcpy(histo_h, histo_d, histo_size, cudaMemcpyDeviceToHost);
     
     // Cleanup
     cudaFree(data_d);
