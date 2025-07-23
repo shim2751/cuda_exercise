@@ -115,7 +115,7 @@ void histo_aggre_kernel(char* data, unsigned int length, unsigned int * histo){
         histo_s[bin] = 0u;
     }
     __syncthreads();
-    unsigned int acc_cnt = 0;
+    unsigned int accumulator = 0;
     int prev_pos = 0;
     unsigned int tid = blockIdx.x*blockDim.x + threadIdx.x;
     for(unsigned int i=tid*CFACTOR; i<length; i+=blockDim.x*gridDim.x) {
@@ -123,18 +123,18 @@ void histo_aggre_kernel(char* data, unsigned int length, unsigned int * histo){
         if (pos >= 0 && pos < 26){
             int bin = pos/4;
             if (prev_pos == pos)
-                acc_cnt++;
+                accumulator++;
             else{
-                if (acc_cnt > 0){
-                    atomicAdd(&(histo_s[prev_pos]), acc_cnt);
+                if (accumulator > 0){
+                    atomicAdd(&(histo_s[prev_pos]), accumulator);
                 }
-                acc_cnt = 1;
+                accumulator = 1;
                 prev_pos = pos;
             }
         }
     }
-    if (acc_cnt > 0){
-        atomicAdd(&(histo_s[prev_pos]), acc_cnt);
+    if (accumulator > 0){
+        atomicAdd(&(histo_s[prev_pos]), accumulator);
     }
 
     __syncthreads();
