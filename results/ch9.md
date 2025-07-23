@@ -5,9 +5,9 @@
 
 ---
 
-## **1단계: 문제 인식 및 기본 해결책 (Atomic Operation)**
+## **1단계: Atomic Operation**
 
-### **문제점: Race Condition **  
+### **문제점: Race Condition**  
 - 병렬 히스토그램에서는 여러 스레드가 동시에 동일한 히스토그램 통(bin)의 카운터를 증가시키려고 할 수 있습니다.  
 - 이 과정에서 **읽기-수정-쓰기(read-modify-write)** 단계가 겹치면 경쟁 상태가 발생합니다.  
 - 예시:  
