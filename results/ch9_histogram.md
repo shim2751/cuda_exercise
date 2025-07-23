@@ -72,9 +72,9 @@
 
 ---
 ## **최종 결론**
-Atomic Operation: 여러 스레드가 동시에 동일한 메모리 위치를 업데이트할 때 발생하는 **race condition**를 해결합니다. 하지만 이는 연산을 직렬화하여 심각한 성능 병목을 유발합니다.  
-Privatization: 스레드 블록별로 **private copies**을 만들어 경쟁을 줄이고, 이를 공유 메모리에 저장하여 atomic operation의 지연 시간을 최소화합니다.  
-Thread Coarsening: 각 스레드가 더 많은 데이터를 처리하게 하여 **스레드 블록의 수를 줄이고**, 이를 통해 사유화의 병합 오버헤드를 감소시킵니다. 이때 메모리 접근 효율을 높이기 위해 **interleaved partitioning** 방식을 사용합니다.  
-Aggregation: 데이터가 특정 값에 집중될 경우, 스레드 내에서 로컬 변수를 사용해 **업데이트를 모았다가 한 번에 atomic operation을 수행**하여 총 연산 횟수를 줄입니다.  
+(1) Atomic Operation: 여러 스레드가 동시에 동일한 메모리 위치를 업데이트할 때 발생하는 **race condition**를 해결합니다. 하지만 이는 연산을 직렬화하여 심각한 성능 병목을 유발합니다.  
+(2) Privatization: 스레드 블록별로 **private copies**을 만들어 경쟁을 줄이고, 이를 공유 메모리에 저장하여 atomic operation의 지연 시간을 최소화합니다.  
+(3) Thread Coarsening: 각 스레드가 더 많은 데이터를 처리하게 하여 **스레드 블록의 수를 줄이고**, 이를 통해 사유화의 병합 오버헤드를 감소시킵니다. 이때 메모리 접근 효율을 높이기 위해 **interleaved partitioning** 방식을 사용합니다.  
+(4) Aggregation: 데이터가 특정 값에 집중될 경우, 스레드 내에서 로컬 변수를 사용해 **업데이트를 모았다가 한 번에 atomic operation을 수행**하여 총 연산 횟수를 줄입니다.  
 
 
