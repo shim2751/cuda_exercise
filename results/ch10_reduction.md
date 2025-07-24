@@ -16,8 +16,9 @@
 | **Coarsened Reduction:**   | 0.026624 ms  |
 
 
-### **num of elements: 1024*1024**
+### **num of elements: 1024*1024**  
 | Kernel                | Excution time (ms) |
+|----------------------------|----------------|
 | **Hierarchical Reduction**   | 0.016384 ms  |
 | **Coarsened Reduction:**   | 0.011264 ms  |
 
