@@ -6,7 +6,7 @@ Reduction 커널의 최적화는 수많은 스레드가 협력하여 단일 결�
 ---
 ## **Experiment Results**
 
-### **num of elements: 512**
+### **# of elements: 512**
 | Kernel                | Excution time (ms) |
 |----------------------------|----------------|
 | **Basic Reduction**          | 43.451393 ms    |
@@ -16,7 +16,7 @@ Reduction 커널의 최적화는 수많은 스레드가 협력하여 단일 결�
 | **Coarsened Reduction:**   | 0.026624 ms  |
 
 
-### **num of elements: 1024*1024**  
+### **\# of elements: 1024*1024**  
 | Kernel                | Excution time (ms) |
 |----------------------------|----------------|
 | **Hierarchical Reduction**   | 0.016384 ms  |
