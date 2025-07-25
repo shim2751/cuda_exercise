@@ -11,7 +11,8 @@ typedef enum {
     SCAN_KOGGE_STONE = 1,       // Kogge-Stone parallel scan
     SCAN_BRENT_KUNG = 2,        // Brent-Kung parallel scan
     SCAN_COARSENED = 3,         // Coarsened scan optimization
-    SCAN_SEGMENTED = 4          // Segmented scan for arbitrary-length inputs
+    SCAN_SEGMENTED = 4,          // Segmented scan for arbitrary-length inputs
+    DOMINO_SCAN_SEGMENTED = 5 // Segmented scan with domino style
 } scan_kernel_t;
 
 // Unified launch function

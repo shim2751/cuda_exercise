@@ -38,7 +38,7 @@ bool check_results(float* cpu_result, float* gpu_result, unsigned int length, fl
 
 int main() {
     const unsigned int length = SECTION_SIZE;  // Use section size for testing
-    
+
     float* input_data = new float[length];
     float* cpu_output = new float[length];
     float* gpu_output = new float[length];
@@ -60,7 +60,8 @@ int main() {
         SCAN_KOGGE_STONE,
         SCAN_BRENT_KUNG,
         SCAN_COARSENED,
-        SCAN_SEGMENTED
+        SCAN_SEGMENTED,
+        DOMINO_SCAN_SEGMENTED
     };
     
     const char* names[] = {
@@ -69,10 +70,11 @@ int main() {
         "Brent-Kung Scan", 
         "Coarsened Scan",
         "Segmented Scan"
+        "Domino Segmented Scan"
     };
     
     // Run all kernels and collect results
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 4; i++) {
         // Clear GPU output buffer
         for (unsigned int j = 0; j < length; j++) {
             gpu_output[j] = 0.0f;
@@ -88,18 +90,9 @@ int main() {
         printf("Correct: %s\n", check_results(cpu_output, gpu_output, length) ? "✓" : "✗");
         printf("\n");
     }
-    
-    // Print sample of results for verification
-    printf("Sample results:\n");
-    printf("Index\tInput\tCPU\tGPU (last kernel)\n");
-    for (int i = 26; i < 36 && i < length; i++) {
-        printf("%d\t%.2f\t%.2f\t%.2f\n", 
-               i, input_data[i], cpu_output[i], gpu_output[i]);
-    }
-    
     // Test with larger input to demonstrate segmented scan
     printf("\n=== Testing Segmented Scan with Larger Input ===\n");
-    const unsigned int large_length = 2048;  // Requires multiple blocks
+    const unsigned int large_length = 1024*10;  // Requires multiple blocks
     
     float* large_input = new float[large_length];
     float* large_cpu = new float[large_length];
@@ -109,19 +102,22 @@ int main() {
     
     printf("Processing %u elements with segmented scan...\n", large_length);
     
-    // CPU computation
-    start = clock();
     scan_cpu(large_input, large_cpu, large_length);
-    cpu_time = (double)(clock() - start) / CLOCKS_PER_SEC * 1000;
-    printf("CPU: %.2f ms, Final sum: %.6f\n", cpu_time, large_cpu[large_length-1]);
     
     // GPU segmented scan
     for (unsigned int j = 0; j < large_length; j++) {
         large_gpu[j] = 0.0f;
     }
     launch_scan(large_input, large_gpu, large_length, SCAN_SEGMENTED);
-    printf("GPU Final sum: %.6f\n", large_gpu[large_length-1]);
     printf("Correct: %s\n", check_results(large_cpu, large_gpu, large_length) ? "✓" : "✗");
+    printf("\n");
+    
+    for (unsigned int j = 0; j < large_length; j++) {
+        large_gpu[j] = 0.0f;
+    }
+    launch_scan(large_input, large_gpu, large_length, DOMINO_SCAN_SEGMENTED);
+    printf("Correct: %s\n", check_results(large_cpu, large_gpu, large_length) ? "✓" : "✗");
+    printf("\n");
     
     // Cleanup
     delete[] input_data;
