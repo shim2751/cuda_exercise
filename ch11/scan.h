@@ -10,7 +10,8 @@ typedef enum {
     SCAN_SEQUENTIAL = 0,        // Sequential scan (baseline)
     SCAN_KOGGE_STONE = 1,       // Kogge-Stone parallel scan
     SCAN_BRENT_KUNG = 2,        // Brent-Kung parallel scan
-    SCAN_COARSENED = 3          // Coarsened scan optimization
+    SCAN_COARSENED = 3,         // Coarsened scan optimization
+    SCAN_SEGMENTED = 4          // Segmented scan for arbitrary-length inputs
 } scan_kernel_t;
 
 // Unified launch function

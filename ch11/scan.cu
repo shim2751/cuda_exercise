@@ -102,46 +102,48 @@ void scan_coarsened_segment_kernel(float* input, float* output, float* S, unsign
     // Phase 1: Sequential scan within sub-sections
     float seq_sum[SUBSEC_SIZE];
     unsigned int idx = SECTION_SIZE * blockIdx.x + threadIdx.x * SUBSEC_SIZE;
-    seq_sum[0] = input[idx];
-    for(int j = 1; j < SUBSEC_SIZE; j++){
-        seq_sum[j] = seq_sum[j-1] + input[idx+j];
-    }
-    __syncthreads();
-    // Phase 2: Parallel scan across sub-sections
-    const unsigned int num_subsec = SECTION_SIZE / SUBSEC_SIZE;
-    __shared__ float scan_s[num_subsec];
+    // seq_sum[0] = input[idx];
+    // for(int j = 1; j < SUBSEC_SIZE; j++){
+    //     seq_sum[j] = seq_sum[j-1] + input[idx+j];
+    // }
+    // __syncthreads();
+    // // Phase 2: Parallel scan across sub-sections
+    // const unsigned int num_subsec = SECTION_SIZE / SUBSEC_SIZE;
+    // __shared__ float scan_s[num_subsec];
 
-    if (threadIdx.x == num_subsec - 1) 
-        scan_s[0] = 0.0f;
-    else 
-        scan_s[threadIdx.x+1] = seq_sum[SUBSEC_SIZE-1];
+    // if (threadIdx.x == num_subsec - 1) 
+    //     scan_s[0] = 0.0f;
+    // else 
+    //     scan_s[threadIdx.x+1] = seq_sum[SUBSEC_SIZE-1];
 
-    for(int stride = 1; stride < num_subsec; stride *= 2){
-        __syncthreads();
-        float tmp;
-        if (threadIdx.x >= stride)
-            tmp = scan_s[threadIdx.x] + scan_s[threadIdx.x-stride];
-        __syncthreads();
-        if (threadIdx.x >= stride)
-            scan_s[threadIdx.x] = tmp;
-    }
-    __syncthreads();
-    // Phase 3: Final output computation
-    for(int j = 0; j < SUBSEC_SIZE; j++){
-        if(idx < N)
-            output[idx+j] = seq_sum[j] + scan_s[threadIdx.x];
-    }
-    __syncthreads();
+    // for(int stride = 1; stride < num_subsec; stride *= 2){
+    //     __syncthreads();
+    //     float tmp;
+    //     if (threadIdx.x >= stride)
+    //         tmp = scan_s[threadIdx.x] + scan_s[threadIdx.x-stride];
+    //     __syncthreads();
+    //     if (threadIdx.x >= stride)
+    //         scan_s[threadIdx.x] = tmp;
+    // }
+    // __syncthreads();
+    // // Phase 3: Final output computation
+    // for(int j = 0; j < SUBSEC_SIZE; j++){
+    //     if(idx < N)
+    //         output[idx+j] = seq_sum[j] + scan_s[threadIdx.x];
+    // }
+    // __syncthreads();
 
-    // 4. The last thread in the block stores the block's total sum into the S array
-    if (threadIdx.x == blockDim.x - 1) {
-        S[blockIdx.x] = seq_sum[SUBSEC_SIZE-1] + scan_s[threadIdx.x];
-    }
+    // // 4. The last thread in the block stores the block's total sum into the S array
+    // if (threadIdx.x == blockDim.x - 1) {
+    //     S[blockIdx.x] = seq_sum[SUBSEC_SIZE-1] + scan_s[threadIdx.x];
+    // }
 
 }
 
 __global__ void kernel_scan_sums(float *S, unsigned int num_sums) {
     const unsigned int num_subsec = SECTION_SIZE / SUBSEC_SIZE;
+
+    unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
     __shared__ float scan_s[num_subsec];
 
     // Load data from the S array into shared memory
@@ -166,8 +168,8 @@ __global__ void kernel_scan_sums(float *S, unsigned int num_sums) {
     __syncthreads();
 
     // Store the scanned results back into the S array
-    if (threadIdx.x < num_sums) {
-        S[threadIdx.x] = scan_s[threadIdx.x];
+    if (i < num_sums) {
+        S[i] = scan_s[threadIdx.x];
     }
 }
 
@@ -181,7 +183,6 @@ __global__ void kernel_add_sums(float *output, float *S, unsigned int N) {
         output[i] += S[blockIdx.x - 1];
     }
 }
-
 
 
 // Unified launch function
@@ -247,6 +248,43 @@ void launch_scan(float* input_h, float* output_h,
             dim3 grid_dim(1);
             dim3 block_dim(threads_per_block);
             scan_coarsened_kernel<<<grid_dim, block_dim>>>(input_d, output_d, length);
+            break;
+        }
+        case SCAN_SEGMENTED: {
+            // Calculate number of blocks needed
+            int threads_per_block = SECTION_SIZE / SUBSEC_SIZE;
+            int num_blocks = (length + SECTION_SIZE - 1) / SECTION_SIZE;
+
+            printf("Segmented scan: %d elements, %d blocks, %d threads per block\n",
+                   length, num_blocks, threads_per_block);
+            
+            // Allocate memory for block sums array S
+            float *S_d;
+            cudaMalloc(&S_d, num_blocks * sizeof(float));
+            
+            // Step 1: Perform segmented scan on each block and store block sums
+            dim3 grid_dim1(num_blocks);
+            dim3 block_dim1(threads_per_block);
+            scan_coarsened_segment_kernel<<<grid_dim1, block_dim1>>>(input_d, output_d, S_d, length);
+            cudaDeviceSynchronize();
+            
+            // Step 2: Scan the block sums array (if more than one block)
+            // if (num_blocks > 1) {
+                
+            //     dim3 grid_dim2(ceil(num_blocks/512.0));
+            //     dim3 block_dim2(512);
+                // kernel_scan_sums<<<grid_dim2, block_dim2>>>(S_d, num_blocks);
+                // cudaDeviceSynchronize();
+                
+                // // Step 3: Add scanned block sums to all elements in their respective blocks
+                // dim3 grid_dim3(num_blocks);
+                // dim3 block_dim3(SECTION_SIZE);
+                // kernel_add_sums<<<grid_dim3, block_dim3>>>(output_d, S_d, length);
+                // cudaDeviceSynchronize();
+            // }
+            
+            // Cleanup S array
+            cudaFree(S_d);
             break;
         }
         default: {

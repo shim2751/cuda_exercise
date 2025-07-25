@@ -59,18 +59,20 @@ int main() {
         SCAN_SEQUENTIAL,
         SCAN_KOGGE_STONE,
         SCAN_BRENT_KUNG,
-        SCAN_COARSENED
+        SCAN_COARSENED,
+        SCAN_SEGMENTED
     };
     
     const char* names[] = {
         "Sequential Scan",
         "Kogge-Stone Scan",
         "Brent-Kung Scan", 
-        "Coarsened Scan"
+        "Coarsened Scan",
+        "Segmented Scan"
     };
     
     // Run all kernels and collect results
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 5; i++) {
         // Clear GPU output buffer
         for (unsigned int j = 0; j < length; j++) {
             gpu_output[j] = 0.0f;
@@ -95,10 +97,39 @@ int main() {
                i, input_data[i], cpu_output[i], gpu_output[i]);
     }
     
+    // Test with larger input to demonstrate segmented scan
+    printf("\n=== Testing Segmented Scan with Larger Input ===\n");
+    const unsigned int large_length = 2048;  // Requires multiple blocks
+    
+    float* large_input = new float[large_length];
+    float* large_cpu = new float[large_length];
+    float* large_gpu = new float[large_length];
+    
+    initialize_data(large_input, large_length);
+    
+    printf("Processing %u elements with segmented scan...\n", large_length);
+    
+    // CPU computation
+    start = clock();
+    scan_cpu(large_input, large_cpu, large_length);
+    cpu_time = (double)(clock() - start) / CLOCKS_PER_SEC * 1000;
+    printf("CPU: %.2f ms, Final sum: %.6f\n", cpu_time, large_cpu[large_length-1]);
+    
+    // GPU segmented scan
+    for (unsigned int j = 0; j < large_length; j++) {
+        large_gpu[j] = 0.0f;
+    }
+    launch_scan(large_input, large_gpu, large_length, SCAN_SEGMENTED);
+    printf("GPU Final sum: %.6f\n", large_gpu[large_length-1]);
+    printf("Correct: %s\n", check_results(large_cpu, large_gpu, large_length) ? "✓" : "✗");
+    
     // Cleanup
     delete[] input_data;
     delete[] cpu_output;
     delete[] gpu_output;
+    delete[] large_input;
+    delete[] large_cpu;
+    delete[] large_gpu;
     
     return 0;
 }
