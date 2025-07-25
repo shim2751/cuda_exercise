@@ -7,6 +7,28 @@
 **단순 병렬화 → 작업량 감소 → 메모리 접근 최적화**
 
 ---
+## **Experiment Results**
+
+## **Experiment Results**
+- SECTION_SIZE 512  
+- SUBSEC_SIZE 16  
+
+### **# of elements: 512**
+| Kernel                | Excution time (ms) |
+|----------------------------|----------------|
+| **Sequential Scan**          | 72.707069 ms    |
+| **Kogge-Stone Scan**  | 0.021504 ms     |
+| **Brent-Kung Scan** | 0.020480 ms  |
+| **Coarsened Scan**   | 0.018432 ms  |
+
+
+### **\# of elements: 10240**  
+| Kernel                | Excution time (ms) |
+|----------------------------|----------------|
+| **Segmented Scan**   | 0.064512 ms  |
+| **Single-pass Segmented Scan:**   | 0.030720 ms  |
+
+---
 
 ## **1단계: Kogge-Stone Algorithm**
 

@@ -3,7 +3,7 @@
 
 // Scan configuration
 #define SECTION_SIZE 512    // Elements per section
-#define SUBSEC_SIZE 32      // Elements per sub-section for coarsened scan
+#define SUBSEC_SIZE 16      // Elements per sub-section for coarsened scan
 
 // Scan kernel types (following PDF chapter 11 progression)
 typedef enum {
