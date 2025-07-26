@@ -1,4 +1,8 @@
-__global__
+#include "merge.h"
+#include <cstdio>
+#include <cmath>
+
+__device__
 void merge_sequential(int* A, int m, int* B, int n, int* C) {
     int i = 0, j = 0, k = 0;
     while(i < m && j < n){
@@ -51,7 +55,7 @@ int co_rank(int k, int* A, int m, int* B, int n){
 __global__
 void merge_basic_kerner(int* A, int m, int* B, int n, int* C) {
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
-    int elementsPerThread = ceil((m+n)/(blockDim.x*gridDim.x));
+    int elementsPerThread = ((m+n) + blockDim.x*gridDim.x - 1)/(blockDim.x*gridDim.x);
     int k_curr = tid*elementsPerThread; // start output index
     int k_next = min((tid+1)*elementsPerThread, m+n); // end output index
     int i_curr = co_rank(k_curr, A, m, B, n);
@@ -68,7 +72,7 @@ void merge_tiled_kernel(int* A, int m, int* B, int n, int* C, int tile_size) {
     int* A_s = &shareAB[0];
     int* B_s = &shareAB[tile_size];
     
-    int elementsPerBlock = ceil((m + n) / gridDim.x);
+    int elementsPerBlock = ceilf((m + n) / gridDim.x);
     int C_curr = blockIdx.x * elementsPerBlock; // start output index
     int C_next = min((blockIdx.x + 1) * elementsPerBlock, m + n); // end output index
     
@@ -89,7 +93,7 @@ void merge_tiled_kernel(int* A, int m, int* B, int n, int* C, int tile_size) {
     int C_length = C_next - C_curr;
     int A_length = A_next - A_curr;
     int B_length = B_next - B_curr;
-    int total_iteration = ceil((C_length)/tile_size);          //total iteration
+    int total_iteration = ceilf((C_length)/tile_size);          //total iteration
     int C_completed = 0;
     int A_consumed = 0;
     int B_consumed = 0;
@@ -196,7 +200,7 @@ void merge_tiled_circular_kernel(int* A, int m, int* B, int n, int* C, int tile_
     int* A_s = &shareAB[0];
     int* B_s = &shareAB[tile_size];
     
-    int elementsPerBlock = ceil((m + n) / gridDim.x);
+    int elementsPerBlock = ceilf((m + n) / gridDim.x);
     int C_curr = blockIdx.x * elementsPerBlock; // start output index
     int C_next = min((blockIdx.x + 1) * elementsPerBlock, m + n); // end output index
     
@@ -217,7 +221,7 @@ void merge_tiled_circular_kernel(int* A, int m, int* B, int n, int* C, int tile_
     int C_length = C_next - C_curr;
     int A_length = A_next - A_curr;
     int B_length = B_next - B_curr;
-    int total_iteration = ceil((C_length)/tile_size);          //total iteration
+    int total_iteration = ceilf((C_length)/tile_size);          //total iteration
     int C_completed = 0;
     int A_s_start = 0; 
     int B_s_start = 0; 
@@ -283,3 +287,113 @@ void merge_tiled_circular_kernel(int* A, int m, int* B, int n, int* C, int tile_
 
 }
 
+
+// Unified launch function for merge kernels
+void launch_merge(int* A_h, int m, int* B_h, int n, int* C_h, merge_kernel_t kernel_type) {
+    int A_size = m * sizeof(int);
+    int B_size = n * sizeof(int);
+    int C_size = (m + n) * sizeof(int);
+    
+    // Create CUDA events for timing
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    
+    // Device memory allocation
+    int *A_d, *B_d, *C_d;
+    cudaMalloc(&A_d, A_size);
+    cudaMalloc(&B_d, B_size);
+    cudaMalloc(&C_d, C_size);
+    
+    // Copy input data to device
+    cudaMemcpy(A_d, A_h, A_size, cudaMemcpyHostToDevice);
+    cudaMemcpy(B_d, B_h, B_size, cudaMemcpyHostToDevice);
+    cudaMemset(C_d, 0, C_size);
+    
+    // Launch appropriate kernel based on type
+    switch(kernel_type) {
+        case MERGE_BASIC: {
+            // Basic parallel merge with co-rank
+            int threads_per_block = 256;
+            int num_blocks = 1;
+            
+            printf("Basic merge: %d blocks, %d threads per block\n", num_blocks, threads_per_block);
+            
+            dim3 grid_dim(num_blocks);
+            dim3 block_dim(threads_per_block);
+            
+            cudaEventRecord(start);
+            merge_basic_kerner<<<grid_dim, block_dim>>>(A_d, m, B_d, n, C_d);
+            cudaEventRecord(stop);
+            break;
+        }
+        case MERGE_TILED: {
+            // Tiled merge with shared memory
+            int threads_per_block = 128;
+            int num_blocks = ceil((m + n) / (float)(TILE_SIZE * 2)); // Conservative estimate
+            num_blocks = max(1, num_blocks);
+            
+            printf("Tiled merge: %d blocks, %d threads per block, tile size: %d\n", 
+                   num_blocks, threads_per_block, TILE_SIZE);
+            
+            dim3 grid_dim(num_blocks);
+            dim3 block_dim(threads_per_block);
+            
+            // Shared memory size: TILE_SIZE for A + TILE_SIZE for B
+            int shared_mem_size = 2 * TILE_SIZE * sizeof(int);
+            
+            cudaEventRecord(start);
+            merge_tiled_kernel<<<grid_dim, block_dim, shared_mem_size>>>(
+                A_d, m, B_d, n, C_d, TILE_SIZE);
+            cudaEventRecord(stop);
+            break;
+        }
+        case MERGE_TILED_CIRCULAR: {
+            // Tiled merge with circular buffer
+            int threads_per_block = 128;
+            int num_blocks = ceil((m + n) / (float)(TILE_SIZE * 2)); // Conservative estimate
+            num_blocks = max(1, num_blocks);
+            
+            printf("Tiled circular merge: %d blocks, %d threads per block, tile size: %d\n", 
+                   num_blocks, threads_per_block, TILE_SIZE);
+            
+            dim3 grid_dim(num_blocks);
+            dim3 block_dim(threads_per_block);
+            
+            // Shared memory size: TILE_SIZE for A + TILE_SIZE for B
+            int shared_mem_size = 2 * TILE_SIZE * sizeof(int);
+            
+            cudaEventRecord(start);
+            merge_tiled_circular_kernel<<<grid_dim, block_dim, shared_mem_size>>>(
+                A_d, m, B_d, n, C_d, TILE_SIZE);
+            cudaEventRecord(stop);
+            break;
+        }
+    }
+    
+    // Wait for the recorded events to complete
+    cudaEventSynchronize(stop);
+    
+    // Calculate elapsed time
+    float milliseconds = 0;
+    cudaEventElapsedTime(&milliseconds, start, stop);
+    
+    // Print timing information
+    const char* kernel_names[] = {
+        "Basic Parallel Merge", 
+        "Tiled Merge",
+        "Tiled Circular Merge"
+    };
+    printf("[%s] Kernel execution time: %.6f ms\n", 
+           kernel_names[kernel_type], milliseconds);
+    
+    // Copy result back to host
+    cudaMemcpy(C_h, C_d, C_size, cudaMemcpyDeviceToHost);
+    
+    // Cleanup
+    cudaFree(A_d);
+    cudaFree(B_d);
+    cudaFree(C_d);
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
+}
