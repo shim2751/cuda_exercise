@@ -33,16 +33,6 @@ void merge_cpu(int* A, int m, int* B, int n, int* C) {
     }
 }
 
-bool check_sorted(int* array, int length) {
-    for (int i = 1; i < length; i++) {
-        if (array[i] < array[i-1]) {
-            printf("Array not sorted at index %d: %d > %d\n", i, array[i-1], array[i]);
-            return false;
-        }
-    }
-    return true;
-}
-
 bool check_results(int* cpu_result, int* gpu_result, int length) {
     for (int i = 0; i < length; i++) {
         if (cpu_result[i] != gpu_result[i]) {
@@ -92,7 +82,6 @@ int main() {
     merge_cpu(A, m, B, n, cpu_result);
     double cpu_time = (double)(clock() - start) / CLOCKS_PER_SEC * 1000;
     printf("CPU: %.2f ms\n", cpu_time);
-    printf("CPU result sorted: %s\n", check_sorted(cpu_result, total_size) ? "✓" : "✗");
     print_array(cpu_result, total_size, "CPU Result");
     printf("\n");
     
@@ -122,7 +111,6 @@ int main() {
         launch_merge(A, m, B, n, gpu_result, kernels[i]);
         
         // Verify correctness
-        printf("GPU result sorted: %s\n", check_sorted(gpu_result, total_size) ? "✓" : "✗");
         printf("Results match CPU: %s\n", check_results(cpu_result, gpu_result, total_size) ? "✓" : "✗");
         print_array(gpu_result, total_size, "GPU Result");
         printf("\n");

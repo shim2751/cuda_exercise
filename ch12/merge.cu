@@ -6,7 +6,7 @@ __device__
 void merge_sequential(int* A, int m, int* B, int n, int* C) {
     int i = 0, j = 0, k = 0;
     while(i < m && j < n){
-        if(A[i] < B[j]) {
+        if(A[i] <= B[j]) {
             C[k++] = A[i++];
         } else {
             C[k++] = B[j++];
@@ -33,7 +33,7 @@ int co_rank(int k, int* A, int m, int* B, int n){
     bool active = true;
     //until B[j-1] < A[i] && A[i-1] < B[j]
     while(active){
-        if(i > 0 && j < n && A[i-1] >= B[j]){
+        if(i > 0 && j < n && A[i-1] > B[j]){
             delta = ((i - i_low + 1) >> 1); 
             j_low = j;
             i -= delta;
@@ -42,8 +42,8 @@ int co_rank(int k, int* A, int m, int* B, int n){
         else if (j > 0 && i < m && B[j-1] >= A[i]){
             delta = ((j - j_low + 1) >> 1);
             i_low = i;
-            j -= delta;
             i += delta;
+            j -= delta;
         }
         else {
             active = false;
@@ -72,7 +72,7 @@ void merge_tiled_kernel(int* A, int m, int* B, int n, int* C, int tile_size) {
     int* A_s = &shareAB[0];
     int* B_s = &shareAB[tile_size];
     
-    int elementsPerBlock = ceilf((m + n) / gridDim.x);
+    int elementsPerBlock = (m + n + gridDim.x - 1) / gridDim.x;
     int C_curr = blockIdx.x * elementsPerBlock; // start output index
     int C_next = min((blockIdx.x + 1) * elementsPerBlock, m + n); // end output index
     
@@ -93,7 +93,7 @@ void merge_tiled_kernel(int* A, int m, int* B, int n, int* C, int tile_size) {
     int C_length = C_next - C_curr;
     int A_length = A_next - A_curr;
     int B_length = B_next - B_curr;
-    int total_iteration = ceilf((C_length)/tile_size);          //total iteration
+    int total_iteration = (C_length + tile_size - 1)/tile_size;          //total iteration
     int C_completed = 0;
     int A_consumed = 0;
     int B_consumed = 0;
@@ -148,7 +148,7 @@ int co_rank_circular(int k, int* A, int m, int* B, int n, int A_s_start, int B_s
         int i_cir = (A_s_start+i) % tile_size;
         int i_m_1_cir = (A_s_start+i-1) % tile_size;
         int j_cir = (B_s_start+j) % tile_size;
-        int j_m_1_cir = (B_s_start+i-1) % tile_size;
+        int j_m_1_cir = (B_s_start+j-1) % tile_size;
         if (i > 0 && j < n && A[i_m_1_cir] > B[j_cir]) {
             delta = ((i - i_low +1) >> 1) ; // ceil(i-i_low)/2)
             j_low = j;
@@ -281,8 +281,6 @@ void merge_tiled_circular_kernel(int* A, int m, int* B, int n, int* C, int tile_
         A_s_start = (A_s_start + A_s_consumed) % tile_size;
         B_s_start = (B_s_start + B_s_consumed) % tile_size;
         __syncthreads();
-
-        __syncthreads();
     }
 
 }
@@ -314,8 +312,8 @@ void launch_merge(int* A_h, int m, int* B_h, int n, int* C_h, merge_kernel_t ker
     switch(kernel_type) {
         case MERGE_BASIC: {
             // Basic parallel merge with co-rank
-            int threads_per_block = 256;
-            int num_blocks = 1;
+            int threads_per_block = 128;
+            int num_blocks = ceil((m + n) / threads_per_block); 
             
             printf("Basic merge: %d blocks, %d threads per block\n", num_blocks, threads_per_block);
             
@@ -330,7 +328,7 @@ void launch_merge(int* A_h, int m, int* B_h, int n, int* C_h, merge_kernel_t ker
         case MERGE_TILED: {
             // Tiled merge with shared memory
             int threads_per_block = 128;
-            int num_blocks = ceil((m + n) / (float)(TILE_SIZE * 2)); // Conservative estimate
+            int num_blocks = ceil((m + n) / threads_per_block);
             num_blocks = max(1, num_blocks);
             
             printf("Tiled merge: %d blocks, %d threads per block, tile size: %d\n", 
@@ -351,7 +349,7 @@ void launch_merge(int* A_h, int m, int* B_h, int n, int* C_h, merge_kernel_t ker
         case MERGE_TILED_CIRCULAR: {
             // Tiled merge with circular buffer
             int threads_per_block = 128;
-            int num_blocks = ceil((m + n) / (float)(TILE_SIZE * 2)); // Conservative estimate
+            int num_blocks = ceil((m + n) / threads_per_block);
             num_blocks = max(1, num_blocks);
             
             printf("Tiled circular merge: %d blocks, %d threads per block, tile size: %d\n", 
