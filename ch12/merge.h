@@ -2,7 +2,7 @@
 #define MERGE_H
 
 // Merge configuration
-#define TILE_SIZE 32       // Elements per tile for shared memory
+#define TILE_SIZE 128       // Elements per tile for shared memory
 
 // Merge kernel types
 typedef enum {

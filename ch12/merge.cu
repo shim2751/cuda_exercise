@@ -100,7 +100,7 @@ void merge_tiled_kernel(int* A, int m, int* B, int n, int* C, int tile_size) {
     while(counter < total_iteration){
         /* loading tile-size A and B elements into shared memory */
         for(int i=0; i<tile_size; i+=blockDim.x){
-            if( i + threadIdx.x < A_length - A_consumed) {
+            if(i + threadIdx.x < A_length - A_consumed) {
                 A_s[i + threadIdx.x] = A[A_curr + A_consumed + i + threadIdx.x ];
             }
         }
@@ -312,8 +312,8 @@ void launch_merge(int* A_h, int m, int* B_h, int n, int* C_h, merge_kernel_t ker
     switch(kernel_type) {
         case MERGE_BASIC: {
             // Basic parallel merge with co-rank
-            int threads_per_block = 128;
-            int num_blocks = ceil((m + n) / threads_per_block); 
+            int threads_per_block = 32;
+            int num_blocks = 4; 
             
             printf("Basic merge: %d blocks, %d threads per block\n", num_blocks, threads_per_block);
             
@@ -328,8 +328,7 @@ void launch_merge(int* A_h, int m, int* B_h, int n, int* C_h, merge_kernel_t ker
         case MERGE_TILED: {
             // Tiled merge with shared memory
             int threads_per_block = 128;
-            int num_blocks = ceil((m + n) / threads_per_block);
-            num_blocks = max(1, num_blocks);
+            int num_blocks = 16;
             
             printf("Tiled merge: %d blocks, %d threads per block, tile size: %d\n", 
                    num_blocks, threads_per_block, TILE_SIZE);
@@ -349,8 +348,7 @@ void launch_merge(int* A_h, int m, int* B_h, int n, int* C_h, merge_kernel_t ker
         case MERGE_TILED_CIRCULAR: {
             // Tiled merge with circular buffer
             int threads_per_block = 128;
-            int num_blocks = ceil((m + n) / threads_per_block);
-            num_blocks = max(1, num_blocks);
+            int num_blocks = 16;
             
             printf("Tiled circular merge: %d blocks, %d threads per block, tile size: %d\n", 
                    num_blocks, threads_per_block, TILE_SIZE);
